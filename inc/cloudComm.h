@@ -10,6 +10,7 @@
 
 #define FACTORY_INSTANCE                          "https://trksbxmanuf.azure-api.net/internal"
 #define TURQUOISE_GW_ID                           "124678807272"
+#define URL_CREATE_SUCCESS                        (1)
 
 /* Send the data URL to the cloud */
 int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen);

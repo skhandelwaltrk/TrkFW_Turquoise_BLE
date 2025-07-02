@@ -23,8 +23,8 @@ BlePacketType getBlePacketType(le_advertising_info *info) {
         case QUARTZ_SENSOR_DPD_TAPE_ID:
             return QuartzSensor_DPD;
         default:
-            TRK_PRINTF1("ERROR: Unknown Ble packet type!");
-            exit(EXIT_ERR_INVALID_ARGS);
+            //TRK_PRINTF1("ERROR: Unknown Ble packet type!");
+            return QuartzSensor_Unknown;
     }
 }
 
@@ -56,8 +56,7 @@ void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
             parseBleAdvData_QuartzDPD(info, &bleDataPkt->blePktStrct.blePkt_DPD);
             break;
         default:
-            TRK_PRINTF1("ERROR: Unknown BLE packet type detected");
-            exit(EXIT_FAILURE);
+            //TRK_PRINTF1("ERROR: Unknown BLE packet type detected");
             break;
     }
 }
@@ -108,6 +107,8 @@ static void parseBleAdvData_QuartzOPT3110(le_advertising_info *info, BlePacket_Q
         TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
+
+    TRK_PRINTF1("Parsing OPT3110 BLE Adv Data ...");
 
     /* MAC Address */
     memset(blePkt->mac_addr, 0, sizeof(blePkt->mac_addr));
@@ -219,3 +220,4 @@ static uint8_t getEvtFlag_QuartzDPD(le_advertising_info *info) {
     uint8_t blePktEvtFlag = info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET];
     return (blePktEvtFlag == 0 ? (uint8_t)QuartzDPD_NormalMode : blePktEvtFlag);
 }
+

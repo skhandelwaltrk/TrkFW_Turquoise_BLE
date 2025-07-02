@@ -13,7 +13,7 @@ SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
 # Libraries
-LDFLAGS = -lbluetooth -lcurl -lpthread
+LDFLAGS = -lbluetooth -lcurl -lpthread -lconfig
 
 # Include paths
 INCLUDES = -I$(INC_DIR)

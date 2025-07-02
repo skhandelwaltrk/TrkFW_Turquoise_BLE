@@ -18,10 +18,11 @@
 #include <thread>
 #include <cstdlib>
 #include <csignal>
-#include "Ble.h"
+#include "ble.h"
 #include "common.h"
 #include "cloudComm.h"
 #include "tapeFormat.h"
+#include "config.h"
 
 using namespace std;
 
@@ -46,12 +47,12 @@ struct BleScanOptions {
     }
 };
 
+/* Local Variables */
 atomic<BLE_SCAN_STATES> bleScanState(BLE_SCAN_STATE_IDLE);
 atomic<bool> scanStopRequested = false;
 BleScanOptions scanOptions;
 
-int hci_dev_up()
-{
+int hciDevUp() {
     int ctl, ret = 0;
     /* Open HCI socket  */
     ctl = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
@@ -77,8 +78,7 @@ int hci_dev_up()
     return 0;
 }
 
-int hci_dev_down()
-{
+int hciDevDown() {
     int ctl, ret = 0;
     /* Open HCI socket  */
     ctl = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
@@ -98,15 +98,13 @@ int hci_dev_down()
     return 0;
 }
 
-void hci_dev_reset()
-{
-    hci_dev_down();
+void hciDevReset() {
+    hciDevDown();
     SLEEP_MSECS(500);
-    hci_dev_up();
+    hciDevUp();
 }
 
-static bool setScanFilters(int fd) 
-{
+static bool setScanFilters(int fd) {
     uint8_t le_type = 0x00;
     // 40ms scan interval
     uint16_t le_scan_interval = htobs(0x0040);
@@ -128,8 +126,7 @@ static bool setScanFilters(int fd)
     return true;
 }
 
-static bool configureHciFilter(int fd)
-{
+static bool configureHciFilter(int fd) {
     struct hci_filter filter;
     hci_filter_clear(&filter);
     hci_filter_set_ptype(HCI_EVENT_PKT, &filter);
@@ -144,8 +141,7 @@ static bool configureHciFilter(int fd)
     return true;
 }
 
-static bool enableDisableBleScan(int fd, bool enable)
-{
+static bool enableDisableBleScan(int fd, bool enable) {
     // enable scan
     uint8_t le_scan_enable = enable;
     uint8_t le_scan_filter_dup = 0x01;
@@ -165,15 +161,14 @@ static bool enableDisableBleScan(int fd, bool enable)
     return true;
 }
 
-static bool initBleScan(int &fd)
-{
+static bool initBleScan(int &fd) {
     for (uint8_t retry_count = 0; retry_count < BLE_SCAN_INIT_RETRY_LIMIT; retry_count++) {
         fd = hci_open_dev(HCI_DEV_ID);
         if (fd < 0) {
             cout << "ERROR: Opening HCI device: " << string(strerror(errno)) << endl;
             // incrementBleMetrics(BLE_METRIC_NUM_OPEN_DEV_FAIL);
             SLEEP_MSECS(100);
-            hci_dev_reset();
+            hciDevReset();
             continue;
         }
 
@@ -181,7 +176,7 @@ static bool initBleScan(int &fd)
             cout << "ERROR: Setting O_NONBLOCK failed: " << string(strerror(errno)) << endl;
             // incrementBleMetrics(BLE_METRIC_NUM_FCNTL_FAIL);
             close(fd);
-            hci_dev_reset();
+            hciDevReset();
             SLEEP_MSECS(100);
             continue;
         }
@@ -189,7 +184,7 @@ static bool initBleScan(int &fd)
         if (!configureHciFilter(fd) || !setScanFilters(fd) || !enableDisableBleScan(fd, true)) {
             cout << "ERROR: BLE scan setup failed, retry: " << string(strerror(errno)) << endl;
             close(fd);
-            hci_dev_reset();
+            hciDevReset();
             SLEEP_MSECS(100);
             continue;
         }
@@ -201,8 +196,7 @@ static bool initBleScan(int &fd)
     return false;
 }
 
-bool startBleScan(BleScanOptions &options)
-{
+bool startBleScan(BleScanOptions &options) {
     if (bleScanState.load() != BLE_SCAN_STATE_IDLE) {
         cout << "ERROR: Scan in progress" << endl;
         return false;
@@ -215,8 +209,7 @@ bool startBleScan(BleScanOptions &options)
     return true;
 }
 
-bool stopBleScan()
-{
+bool stopBleScan() {
     if (bleScanState.load() != BLE_SCAN_STATE_SCANNING) {
         cout << "ERROR: Scan already stopped" << endl;
         // scan already stopped
@@ -229,8 +222,7 @@ bool stopBleScan()
     return true;
 }
 
-void startOneShotScan(uint32_t scanDurationSec)
-{
+void startOneShotScan(uint32_t scanDurationSec) {
     BleScanOptions scanOptions;
     scanOptions.continuous = false;
     scanOptions.scanDurationSec = scanDurationSec;
@@ -238,19 +230,16 @@ void startOneShotScan(uint32_t scanDurationSec)
     startBleScan(scanOptions);
 }
 
-void startContinuousScan(uint32_t scanDurationSec, uint32_t sleepDurationSec)
-{
+void startContinuousScan(uint32_t scanDurationSec, uint32_t sleepDurationSec) {
     BleScanOptions scanOptions;
     scanOptions.continuous = true;
     scanOptions.scanDurationSec = scanDurationSec;
     scanOptions.sleepDurationSec = sleepDurationSec;
     //scanOptions.callback = cb;
-
     startBleScan(scanOptions);
 }
 
-bool isBleRssiInRange(int8_t rssi)
-{
+bool isBleRssiInRange(int8_t rssi) {
     return rssi >= BLE_RSSI_THRESHOLD;
 }
 
@@ -327,45 +316,6 @@ static void removeChar(char *str, char target) {
         src++;
     }
     *dst = '\0';
-}
-
-/* Helper function */
-inline uint32_t getTimestamp(uint8_t *bleDataBuff, uint8_t startIdx) {
-	return (((((uint32_t)bleDataBuff[startIdx]) << 8) | ((uint32_t)bleDataBuff[startIdx + 1])) * 120);
-}
-
-void CreateBleDataPacket(le_advertising_info *info, QuartzHeartbeatData *bleData) {
-    if (bleData == nullptr || info == nullptr) {
-        TRK_PRINTF("ERROR: Invalid Input Params - BLE Cloud data packet could not be created!");
-        return;
-    }
-
-    /* Read the BLE packet data from the FID byte index */
-    uint8_t start_byte_idx = 7;
-
-    /* MAC Address */
-    memset(bleData->mac_addr, 0, sizeof(bleData->mac_addr));
-    ba2str(&info->bdaddr, bleData->mac_addr);
-    removeChar(bleData->mac_addr,':');
-
-    /* Process and save the BLE info data - 24 bytes */
-    bleData->fid1 = info->data[start_byte_idx];
-    bleData->fid2 = info->data[start_byte_idx + 1];
-    /* Update the BLE event flag for Turquoise GW */
-    bleData->evt_flag = (uint8_t)UpdateEventFlagForQuartz(info->data[start_byte_idx + 2]);
-    bleData->curr_temp = (int8_t)info->data[start_byte_idx + 3];
-    bleData->temp_violation = info->data[start_byte_idx + 4];
-    bleData->t1_ts = getTimestamp(info->data, start_byte_idx + 5);
-    bleData->a0_val = (int8_t)info->data[start_byte_idx + 9];
-    bleData->a0_count = info->data[start_byte_idx + 10];
-    bleData->a0_ts = getTimestamp(info->data, start_byte_idx + 11);
-    bleData->pid1 = (((uint16_t)(info->data[start_byte_idx + 15]) << 8) | ((uint16_t)(info->data[start_byte_idx + 16])));
-    bleData->ts = getTimestamp(info->data, start_byte_idx + 17);
-    bleData->tapeId = (((uint16_t)(info->data[start_byte_idx + 21]) << 8) | ((uint16_t)(info->data[start_byte_idx + 22])));
-    bleData->bat_voltage = ((float)info->data[start_byte_idx + 23])/10.0f;
-
-    /* Save the RSSI */
-    bleData->rssi = (int8_t)info->data[info->length];
 }
 
 device_type_t getBleDataSource(le_advertising_info *info) {
@@ -445,6 +395,19 @@ bool isValidWhiteTapeBleSource(le_advertising_info *info, device_type_t& deviceT
     }
 
     deviceType = getBleDataSource(info);
+    char macAddr[20];
+    memset(macAddr, 0, sizeof(macAddr));
+    ba2str(&info->bdaddr, macAddr);
+    removeChar(macAddr,':');
+
+    if ((strcmp(macAddr, "E897D628F980") == 0) && deviceType == DEVICE_TYPE_WHITE && info->length > 30) {
+        TRK_PRINTF1("TapeData:MAC_ADDR:%s,", macAddr);
+        int i = 0;
+        for (i = 0; i < info->length; i++) {
+            printf("[%d]:0x%02X",i,info->data[i]);
+        }
+        printf("\n");
+    }
 
     return ((deviceType == DEVICE_TYPE_WHITE) && (isBleRssiInRange(info->data[info->length]) == true));
 }
@@ -499,66 +462,62 @@ void printBlePacketData(BleDataPacket *bleData) {
     */
 }
 
-void createBleDataUrlExtension(char *urlDataBuff, size_t urlDataBuffLen, BleDataPacket *blePkt) {
+int createBleDataUrlExtension(char *urlDataBuff, size_t urlDataBuffLen, BleDataPacket *blePkt) {
     if (urlDataBuff == nullptr || urlDataBuffLen < 128 || blePkt == nullptr) {
         TRK_PRINTF1("ERROR: Invalid input parameters, BLE data URL extension creation failed!");
-        return;
+        return -1;
     }
     static char gwLat[] = "40.7064738";
     static char gwLon[] = "-74.0103607";
     static int seqNumber[QuartzSensor_Max] = {0};
-    getGwId();
 
     memset(urlDataBuff, 0, urlDataBuffLen);
 
-    if (blePkt->blePktType == QuartzSensor_TMP117) {
-        BlePacket_QuartzTMP117 *bleData = &blePkt->blePktStrct.blePkt_TMP117;
-
-        snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
-        "&e0=%d&t0=%f&t1=%f&t1ts=%d&t2=%f&t2ts=%d&pid=%d&seqId=%d&tapeId=0x%04X"
-        "&bat=%f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleData->t0_ts,
-        ++seqNumber[QuartzSensor_TMP117], bleData->mac_addr, bleData->rssi, bleData->evt_flag,
-        bleData->t0, bleData->t1, bleData->t1_ts, bleData->t2, bleData->t2_ts,
-        bleData->pid, bleData->seqId, bleData->tapeId, bleData->bat, gwLat, gwLon, getGwId());
-    }
-    else if (blePkt->blePktType == QuartzSensor_OPT3110) {
-        TRK_PRINTF1("ERROR: OPT3110 BLE packets not supported yet");
-    }
-    else if (blePkt->blePktType == QuartzSensor_IAT) {
-        TRK_PRINTF1("ERROR: IAT BLE packets not supported yet");
-    }
-    else if (blePkt->blePktType == QuartzSensor_DPD) {
-        TRK_PRINTF1("ERROR: DPD BLE packets not supported yet");
-    }
-    else {
-        TRK_PRINTF1("ERROR: Unknonwn Ble Packet Type detected");
-    }
-}
-
-void cloudCommicationThreadFunc() {
-    char dataBuff[256];
-
-    TRK_PRINTF("\nStarted Cloud Communication Thread ...");
-
-    while (keepRunning) {
-        unique_lock<mutex> lock(bleQueueMutex);
-        bleQueueCondVar.wait(lock, [] {
-            return !bleDataQueue.empty() || !keepRunning;
-        });
-
-        while (!bleDataQueue.empty()) {
-            /* Fetch the BLE data packet from the queue */
-            BleDataPacket blePkt = bleDataQueue.front();
-            bleDataQueue.pop();
-            lock.unlock();
-
-            //printBlePacketData(&blePkt);
-            /* Create the URL externsion that contains the BLE data */
-            createBleDataUrlExtension(dataBuff, sizeof(dataBuff), &blePkt);
-            /* Send the Data URL to the cloud */
-            sendDataUrlToCloud(dataBuff, strlen(dataBuff) + 1);
-
-            lock.lock();
+    switch(blePkt->blePktType) {
+        case QuartzSensor_TMP117: {
+            BlePacket_QuartzTMP117 *bleTmp117 = &blePkt->blePktStrct.blePkt_TMP117;
+            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
+            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&t2=%.2f&t2ts=%d&pid=%d&seqId=%d&tapeId=0x%04X"
+            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleTmp117->t0_ts,
+            ++seqNumber[QuartzSensor_TMP117], bleTmp117->mac_addr, bleTmp117->rssi, bleTmp117->evt_flag,
+            bleTmp117->t0, bleTmp117->t1, bleTmp117->t1_ts, bleTmp117->t2, bleTmp117->t2_ts,
+            bleTmp117->pid, bleTmp117->seqId, bleTmp117->tapeId, bleTmp117->bat, gwLat, gwLon, getGwId());
+            return URL_CREATE_SUCCESS;
+        }
+        case QuartzSensor_OPT3110: {
+            BlePacket_QuartzOPT3110 *bleOpt3110 = &blePkt->blePktStrct.blePkt_OPT3110;
+            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
+            "&e0=%d&t0=%.2f&l0=%d&l0ts=%d&l1=%d&l1ts=%d&pid=%d&lbat=%.2f&seqId=%d"
+            "&tapeId=0x%04X&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleOpt3110->t0_ts,
+            ++seqNumber[QuartzSensor_OPT3110], bleOpt3110->mac_addr, bleOpt3110->rssi, bleOpt3110->evt_flag,
+            bleOpt3110->t0, bleOpt3110->l0, bleOpt3110->l0_ts, bleOpt3110->l1, bleOpt3110->l1_ts, bleOpt3110->pid,
+            (((float)bleOpt3110->lime_bat)/100.0f), bleOpt3110->seqId, bleOpt3110->tapeId, bleOpt3110->bat,
+            gwLat, gwLon, getGwId());
+            return URL_CREATE_SUCCESS;
+        }
+        case QuartzSensor_IAT: {
+            BlePacket_IAT *bleIAT = &blePkt->blePktStrct.blePkt_IAT;
+            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
+            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&l0=%d&l0ts=%d&a0v=%d&a0c=%d&tapeId=0x%04X"
+            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleIAT->ts,
+            ++seqNumber[QuartzSensor_IAT], bleIAT->mac_addr, bleIAT->rssi, bleIAT->evt_flag,
+            bleIAT->t0, bleIAT->t1, bleIAT->t1_ts, bleIAT->l0, bleIAT->l0_ts, bleIAT->a0_val,
+            bleIAT->a0_count, bleIAT->tapeId, bleIAT->bat, gwLat, gwLon, getGwId());
+            return URL_CREATE_SUCCESS;
+        }
+        case QuartzSensor_DPD: {
+            BlePacket_DPD *bleDPD = &blePkt->blePktStrct.blePkt_DPD;
+            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
+            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&l0=%d&l0ts=%d&l1=%d&tapeId=0x%04X"
+            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleDPD->ts,
+            ++seqNumber[QuartzSensor_DPD], bleDPD->mac_addr, bleDPD->rssi, bleDPD->evt_flag,
+            bleDPD->t0, bleDPD->t1, bleDPD->t1_ts, bleDPD->l0, bleDPD->l0_ts, bleDPD->l1,
+            bleDPD->tapeId, bleDPD->bat, gwLat, gwLon, getGwId());
+            return URL_CREATE_SUCCESS;
+        }
+        default: {
+            //TRK_PRINTF1("ERROR: Unknown Ble Packet Type detected, blePktType: %d", blePkt->blePktType);
+            return -2;
         }
     }
 }
@@ -569,7 +528,8 @@ void sendBleDataPacket(BleDataPacket& bleDataPkt) {
     bleQueueCondVar.notify_one();
 }
 
-void bleThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
+/* BLE Thread Function */
+void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
     int fd = -1;
     uint32_t elapsedSec = 0;
     int ret = 0;
@@ -579,11 +539,15 @@ void bleThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
 
     TRK_PRINTF("\nStarted BLE Thread ...");
 
-    ret = hci_dev_up();
+    ret = hciDevUp();
     if (ret < 0) {
         /* try once more by doing hci down and then hci up */
-        hci_dev_reset();
+        hciDevReset();
     }
+
+    /* Get the Gateway BLE MAC Address */
+    getGatewayBLEMacAddress(bleConnectCfg.gwBleMacId);
+    TRK_PRINTF1("BLE GW MAC ID: %s", bleConnectCfg.gwBleMacId);
 
     while (keepRunning) {
         ret = initBleScan(fd);
@@ -645,9 +609,12 @@ void bleThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 continue;
             }
 
+            /* Check if the scanned tape is in the connectable BLE list */
+            //checkIfConnectableTape(info);
+
             /* Check and update the BLE stats for the white tape. */
             checkAndUpdateBleStats(info, scanResults, deviceType);
-
+            
             /* Run the dups logic (Define the below function )*/
             // if (isNotDuplicateBleData(info, scanResults) != PASSED) {
             //    continue;
@@ -661,8 +628,116 @@ void bleThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                send the data. */
             char *tapeMacAddr = blePacketData.blePktStrct.blePkt_TMP117.mac_addr;
             if (strcmp(tapeMacAddr, "E897D628F980") == 0) {
-                TRK_PRINTF1("Sending BLE packet for MAC:%s ...", tapeMacAddr);
+                //TRK_PRINTF1("Sending TMP117 BLE packet for MAC:%s ...", tapeMacAddr);
                 sendBleDataPacket(blePacketData);
+#if 0
+                BleDataPacket blePacketData_OPT3110, blePacketData_IAT, blePacketData_DPD;
+                blePacketData_OPT3110.blePktType = QuartzSensor_OPT3110;
+                blePacketData_IAT.blePktType = QuartzSensor_IAT;
+                blePacketData_DPD.blePktType = QuartzSensor_DPD;
+                uint8_t tBuff[sizeof(le_advertising_info) + 256] = {0};
+                le_advertising_info *tinfo = (le_advertising_info *)tBuff;
+                /* Create OPT3110 info data */
+                bacpy(&tinfo->bdaddr, &info->bdaddr);
+                //TRK_PRINTF1("OPT3110:tinfo->bdaddr:%s, info->bdaddr:%s",tinfo->bdaddr, info->bdaddr);
+                memset(tinfo->data, 0, 32);
+                tinfo->data[7] = 0x52;
+                tinfo->data[8] = 0x58;
+                tinfo->data[9] = 0; // e0 = Normal Mode (55)
+                tinfo->data[10] = 22;
+                tinfo->data[11] = 58;
+                tinfo->data[12] = 0x12;
+                tinfo->data[13] = 0x34;
+                tinfo->data[14] = 0x56;
+                tinfo->data[15] = 0x78;
+                tinfo->data[16] = 0x13;
+                tinfo->data[17] = 0x57;
+                tinfo->data[18] = 0x57;
+                tinfo->data[19] = 0x9B;
+                tinfo->data[20] = 0x24;
+                tinfo->data[21] = 0x68;
+                tinfo->data[22] = 0x12;
+                tinfo->data[23] = 0x34;
+                tinfo->data[24] = 0x56;
+                tinfo->data[25] = 151;
+                tinfo->data[26] = 0x00;
+                tinfo->data[27] = 0x02;
+                tinfo->data[28] = 0xFF;
+                tinfo->data[29] = 0xFA;
+                tinfo->data[30] = 32;
+                tinfo->data[31] = 59;
+                tinfo->length = 31;
+
+                parseBleDataPacket(tinfo, &blePacketData_OPT3110);
+                TRK_PRINTF1("Sending OPT3110 BLE packet for MAC:%s ...", tapeMacAddr);
+                sendBleDataPacket(blePacketData_OPT3110);
+
+                /* Create IAT info data */
+                memset(tinfo->data, 0, 32);
+                tinfo->data[7] = 0x52;
+                tinfo->data[8] = 0x58;
+                tinfo->data[9] = 0; // e0 = Normal Mode (55)
+                tinfo->data[10] = 22;
+                tinfo->data[11] = 61;
+                tinfo->data[12] = 0x12;
+                tinfo->data[13] = 0x34;
+                tinfo->data[14] = 0x56;
+                tinfo->data[15] = 0x78;
+                tinfo->data[16] = 0x13;
+                tinfo->data[17] = 0x57;
+                tinfo->data[18] = 0x12;
+                tinfo->data[19] = 0x34;
+                tinfo->data[20] = 0x56;
+                tinfo->data[21] = 0x78;
+                tinfo->data[22] = 0x12;
+                tinfo->data[23] = 0x34;
+                tinfo->data[24] = 0x12;
+                tinfo->data[25] = 0x34;
+                tinfo->data[26] = 0x56;
+                tinfo->data[27] = 0x78;
+                tinfo->data[28] = 0xFF;
+                tinfo->data[29] = 0xB1;
+                tinfo->data[30] = 31;
+                tinfo->data[31] = 60;
+                tinfo->length = 31;
+
+                parseBleDataPacket(tinfo, &blePacketData_IAT);
+                TRK_PRINTF1("Sending IAT BLE packet for MAC:%s ...", tapeMacAddr);
+                sendBleDataPacket(blePacketData_IAT);
+
+                /* Create DPD info data */
+                memset(tinfo->data, 0, 32);
+                tinfo->data[7] = 0x52;
+                tinfo->data[8] = 0x58;
+                tinfo->data[9] = 0; // e0 = Normal Mode (55)
+                tinfo->data[10] = 22;
+                tinfo->data[11] = 61;
+                tinfo->data[12] = 0x12;
+                tinfo->data[13] = 0x34;
+                tinfo->data[14] = 0x56;
+                tinfo->data[15] = 0x78;
+                tinfo->data[16] = 0x13;
+                tinfo->data[17] = 0x57;
+                tinfo->data[18] = 0x12;
+                tinfo->data[19] = 0x34;
+                tinfo->data[20] = 0x56;
+                tinfo->data[21] = 0x78;
+                tinfo->data[22] = 0x12;
+                tinfo->data[23] = 0x34;
+                tinfo->data[24] = 0x12;
+                tinfo->data[25] = 0x34;
+                tinfo->data[26] = 0x56;
+                tinfo->data[27] = 0x78;
+                tinfo->data[28] = 0xFF;
+                tinfo->data[29] = 0xB0;
+                tinfo->data[30] = 30;
+                tinfo->data[31] = 61;
+                tinfo->length = 31;
+
+                parseBleDataPacket(tinfo, &blePacketData_DPD);
+                TRK_PRINTF1("Sending DPD BLE packet for MAC:%s ...", tapeMacAddr);
+                sendBleDataPacket(blePacketData_DPD);
+#endif
             }
 
             /*
@@ -697,6 +772,36 @@ void bleThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
     }
 }
 
+/* Cloud Communication Thread Function */
+void cloudCommicationThreadFunc() {
+    TRK_PRINTF1("Started Cloud Communication Thread ...");
+
+    while (keepRunning) {
+        unique_lock<mutex> lock(bleQueueMutex);
+        bleQueueCondVar.wait(lock, [] {
+            return !bleDataQueue.empty() || !keepRunning;
+        });
+
+        while (!bleDataQueue.empty()) {
+            /* Fetch the BLE data packet from the queue */
+            BleDataPacket blePkt = bleDataQueue.front();
+            bleDataQueue.pop();
+            lock.unlock();
+            char dataBuff[256] = {0};
+            /* Create the URL externsion that contains the BLE data */
+            int urlCreateStatus = createBleDataUrlExtension(dataBuff, sizeof(dataBuff), &blePkt);
+            if (urlCreateStatus == URL_CREATE_SUCCESS) {
+                /* Send the Data URL to the cloud */
+                sendDataUrlToCloud(dataBuff, strlen(dataBuff) + 1);
+            }
+            else {
+                //TRK_PRINTF1("ERROR: Failed to create URL for BLE packet, Status: %d", urlCreateStatus);
+            }
+            lock.lock();
+        }
+    }
+}
+
 /* Signal handler for the keyboard Interrupt */
 void keyboardIrqHandler(int signum) {
     TRK_PRINTF("\nReceived signal:%d, exiting...", signum);
@@ -704,9 +809,11 @@ void keyboardIrqHandler(int signum) {
     bleQueueCondVar.notify_all();
 }
 
+void sysInit(void) {
+    readSysConfigFile();
+}
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     /* Check and parse the input arguments - To be removed later */
     if (argc < 3) {
         TRK_PRINTF1("ERROR: Invalid Input Parameters");
@@ -719,9 +826,13 @@ int main(int argc, char *argv[])
     /* Setup signal to handle keyboard interrupt */
     signal(SIGINT, keyboardIrqHandler);
 
+    /* Initialize the system parameters and fetch the system configuration */
+    sysInit();
+
     /* Create thread to communicate to the cloud */
     thread cloudCommThread(cloudCommicationThreadFunc);
-    thread bleThread(bleThreadFunc, bleScanTime, bleSleepTime);
+    thread bleScanThread(bleScanThreadFunc, bleScanTime, bleSleepTime);
+    //thread bleConnectThread(bleConnectThreadFunc);
 
     /* The main thread sleeps for 1 second and checks the running status */
     while(keepRunning) {
@@ -730,7 +841,8 @@ int main(int argc, char *argv[])
     }
 
     cloudCommThread.join();
-    bleThread.join();
+    bleScanThread.join();
+    //bleConnectThread.join();
 
     TRK_PRINTF1("Program exited cleanly");
     return 0;

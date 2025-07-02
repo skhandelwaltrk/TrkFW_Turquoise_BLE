@@ -94,7 +94,7 @@ typedef enum e_QuartzEventFlag {
 //extern queue<BleDataPacket> bleDataQueue;
 //extern mutex bleQueueMutex;
 //extern condition_variable bleQueueCondVar;
-//extern bool keepRunning;
+extern bool keepRunning;
 
 /* Inline functions */
 inline time_t getEpochTimeSecs(void) {
@@ -105,4 +105,5 @@ inline time_t getEpochTimeSecs(void) {
 //void printBlePacketData(BleDataPacket *bleData);
 //void createBleDataUrlExtension(char *urlDataBuff, uint16_t urlDataBuffLen, BleDataPacket *blePkt);
 e_QuartzEventFlag UpdateEventFlagForQuartz(uint8_t evt_flag);
+void sysInit(void);
 #endif /* _COMMON_H_ */

@@ -295,6 +295,7 @@ typedef struct BlePacket_DPD {
 
 #define QUARTZ_SENSOR_TYPES         (4)
 typedef enum BlePacketType {
+    QuartzSensor_Unknown,
     QuartzSensor_TMP117,    // TapeId = 0xFFFC
     QuartzSensor_OPT3110,   // TapeId = 0xFFFA
     QuartzSensor_IAT,       // TapedId = 0xFFB1
