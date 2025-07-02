@@ -9,7 +9,6 @@
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/l2cap.h>
 
-#define BLE_MAC_ADDR_LEN                    (17)
 #define ATT_CID                             (4)
 
 /* ----------------- BLE Synchronization Primitives ---------------------- */
@@ -24,7 +23,6 @@ static inline std::string getBleMacIdFromAdvInfo(le_advertising_info *info);
 static void updateTapeConnectionStatus(tapeConfig* tape, bool success);
 
 /* -------- BLE Initialization Functions (called from the main thread) -------- */
-
 void convertBdAddrToStr(bdaddr_t *addr, char *output) {
     int i, j = 0;
 	char input[18];
@@ -46,16 +44,21 @@ int getGatewayBLEMacAddress(char *macAddress) {
     int device_id = hci_get_route(NULL); // Get the device ID for the Bluetooth adapter
 
     if (device_id < 0) {
-        TRK_PRINTF1("HCI device get_route failed");
+        TRK_PRINTF("HCI device get_route failed");
         return 1;
     }
 
     if (hci_devba(device_id, &bdaddr) < 0) {
-        TRK_PRINTF1("HCI device bdaddr retrieval failed");
+        TRK_PRINTF("HCI device bdaddr retrieval failed");
         return 1;
     }
-
+    int stat = 0;
+    if (macAddress == nullptr) {
+        stat = 1;
+    }
+    TRK_PRINTF("DBG: Converting BD Addr to Str. Stat:%d ", stat);
 	convertBdAddrToStr(&bdaddr, macAddress);
+    TRK_PRINTF("DBG: Converted BD Addr to Str");
     return 0;
 }
 
@@ -128,7 +131,7 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type, int sec) {
 	struct bt_security btsec;
 
 	if (verboseLogging == true) {
-		TRK_PRINTF1("CONNECTABLE_BLE: Opening L2CAP LE connection on ATT "
+		TRK_PRINTF("CONNECTABLE_BLE: Opening L2CAP LE connection on ATT "
             "channel:\n\t src: %s\n\tdest: %s\n", bleConnectCfg.gwBleMacId, dstMacAddr.c_str());
 	}
 
@@ -136,7 +139,7 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type, int sec) {
 	if (sock < 0) {
 		perror("Failed to create L2CAP socket");
         if (verboseLogging == true) {
-            TRK_PRINTF1("ERROR: Failed to create L2CAP socket");
+            TRK_PRINTF("ERROR: Failed to create L2CAP socket");
         }
 		return -1;
 	}
@@ -151,7 +154,7 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type, int sec) {
 	if (bind(sock, (struct sockaddr *)&srcaddr, sizeof(srcaddr)) < 0) {
 		perror("Failed to bind L2CAP socket");
         if (verboseLogging == true) {
-            TRK_PRINTF1("ERROR: Failed to bind L2CAP socket");
+            TRK_PRINTF("ERROR: Failed to bind L2CAP socket");
         }
 		close(sock);
 		return -1;
@@ -164,7 +167,7 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type, int sec) {
 							sizeof(btsec)) != 0) {
 		fprintf(stderr, "Failed to set L2CAP security level\n");
         if (verboseLogging == true) {
-            TRK_PRINTF1("ERROR: Failed to set L2CAP security level");
+            TRK_PRINTF("ERROR: Failed to set L2CAP security level");
         }
 		close(sock);
 		return -1;
@@ -177,16 +180,16 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type, int sec) {
 	dstaddr.l2_bdaddr_type = dst_type;
 	str2ba(dstMacAddr.c_str(), &dstaddr.l2_bdaddr);
 
-	TRK_PRINTF1("Connecting to device ...");
+	TRK_PRINTF("Connecting to device ...");
 	fflush(stdout);
 
 	if (connect(sock, (struct sockaddr *) &dstaddr, sizeof(dstaddr)) < 0) {
-        TRK_PRINTF1("Failed to connect to the BLE device %s", dstMacAddr.c_str());
+        TRK_PRINTF("Failed to connect to the BLE device %s", dstMacAddr.c_str());
 		close(sock);
 		return -1;
 	}
 
-	TRK_PRINTF1("Connected to the BLE device %s", dstMacAddr.c_str());
+	TRK_PRINTF("Connected to the BLE device %s", dstMacAddr.c_str());
 	return sock;
 }
 
@@ -245,7 +248,7 @@ void bleConnectThreadFunc() {
             tapeCfg->tapeFound = false;
             bleConnectLock.unlock();
 
-            TRK_PRINTF1("Initiating connection to the BLE device: %s", tapeMacAddr.c_str());
+            TRK_PRINTF("Initiating connection to the BLE device: %s", tapeMacAddr.c_str());
             bool isTapeConnected = connectToBleTape(tapeMacAddr);
 
             bleConnectLock.lock();
@@ -253,9 +256,9 @@ void bleConnectThreadFunc() {
             updateTapeConnectionStatus(tapeCfg.get(), isTapeConnected);
 
             if (isTapeConnected) {
-                TRK_PRINTF1("Connected successfully to: %s", tapeMacAddr.c_str());
+                TRK_PRINTF("Connected successfully to: %s", tapeMacAddr.c_str());
             } else {
-                TRK_PRINTF1("Connection failed: %s, retry=%d, backoff=%d",
+                TRK_PRINTF("Connection failed: %s, retry=%d, backoff=%d",
                             tapeMacAddr.c_str(), tapeCfg->retryCount, tapeCfg->backOffSecs);
             }
         }

@@ -10,7 +10,7 @@
 extern int totalConnectableTapes;
 
 #define GW_LOC_BUFF_SIZE                (25)
-#define BLE_CONNECT_TYPE_PUBLIC         
+#define BLE_MAC_ADDR_LEN                (17)     
 
 typedef struct tapeConfig {
     std::string macAddr;                 /* MAC address string */
@@ -54,7 +54,7 @@ typedef struct gatewayConfig {
 typedef struct bleConnectConfig {
     int totalConnectableTapes;
     int readTapeAgainDelaySecs;
-    char *gwBleMacId;
+    char gwBleMacId[BLE_MAC_ADDR_LEN + 1];
     std::map<std::string, std::unique_ptr<tapeConfig>> tapeList;
 } bleConnectConfig;
 

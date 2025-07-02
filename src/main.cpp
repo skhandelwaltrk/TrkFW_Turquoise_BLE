@@ -57,18 +57,18 @@ int hciDevUp() {
     /* Open HCI socket  */
     ctl = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
     if (ctl < 0) {
-        cout << "Opening HCI socket: " << string(strerror(errno)) << endl;
+        TRK_PRINTF("Opening HCI socket: %s", strerror(errno));
         return ctl;
     }
 
     ret = ioctl(ctl, HCIDEVUP, HCI_DEV_ID);
     if (ret < 0) {
         if (errno == EALREADY) {
-            cout << "HCI device is already up" << endl;
+            TRK_PRINTF("HCI device is already up");
             // if the interface is already up, we consider that as a success
             ret = 0;
         } else {
-            cout << "HCIDEVUP call failed: " << string(strerror(errno)) << endl;
+            TRK_PRINTF("HCIDEVUP call failed: %s", strerror(errno));
         }
         close(ctl);
         return ret;
@@ -83,13 +83,13 @@ int hciDevDown() {
     /* Open HCI socket  */
     ctl = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
     if (ctl < 0) {
-        cout << "HCI socket: " << string(strerror(errno)) << endl;
+        TRK_PRINTF("HCI socket: %s", strerror(errno));
         return ctl;
     }
 
     ret = ioctl(ctl, HCIDEVDOWN, HCI_DEV_ID);
     if (ret < 0) {
-        cout << "HCIDEVDOWN call failed: " << string(strerror(errno)) << endl;
+        TRK_PRINTF("HCIDEVDOWN call failed: %s", strerror(errno));
         close(ctl);
         return ret;
     }
@@ -118,8 +118,7 @@ static bool setScanFilters(int fd) {
     int ret = hci_le_set_scan_parameters(fd, le_type, le_scan_interval, le_scan_window, le_own_bdaddr_type, le_filter,
                                          BLE_SCAN_TIME_INTERVALS_SEC);
     if (ret < 0) {
-        cout << "ERROR: Set scan parameters: " << string(strerror(errno)) << endl;
-        //incrementBleMetrics(BLE_METRIC_NUM_SET_SCAN_PARAMS_FAIL);
+        TRK_PRINTF("ERROR: Set scan parameters: %s", strerror(errno));
         return false;
     }
 
@@ -133,8 +132,7 @@ static bool configureHciFilter(int fd) {
     hci_filter_set_event(EVT_LE_META_EVENT, &filter);
 
     if (setsockopt(fd, SOL_HCI, HCI_FILTER, &filter, sizeof(filter)) < 0) {
-        cout << "ERROR: Failed to set HCI socket filter: " << string(strerror(errno)) << endl;
-        // incrementBleMetrics(BLE_METRIC_NUM_SET_FILTER_FAIL);
+        TRK_PRINTF("ERROR: Failed to set HCI socket filter: %s", strerror(errno));
         return false;
     }
 
@@ -142,15 +140,13 @@ static bool configureHciFilter(int fd) {
 }
 
 static bool enableDisableBleScan(int fd, bool enable) {
-    // enable scan
     uint8_t le_scan_enable = enable;
     uint8_t le_scan_filter_dup = 0x01;
     uint8_t scan_time = 0x00;
 
     int ret = hci_le_set_scan_enable(fd, le_scan_enable, le_scan_filter_dup, scan_time);
     if (ret < 0) {
-        cout << "ERROR: " << string(enable ? "Enable" : "Disable") << " ble scan failed: " << string(strerror(errno)) << endl;
-        // incrementBleMetrics(BLE_METRIC_NUM_ENABLE_FAILS);
+        TRK_PRINTF("ERROR: %s ble scan failed: %s", enable ? "Enable" : "Disable", strerror(errno));
         return false;
     }
 
@@ -165,16 +161,14 @@ static bool initBleScan(int &fd) {
     for (uint8_t retry_count = 0; retry_count < BLE_SCAN_INIT_RETRY_LIMIT; retry_count++) {
         fd = hci_open_dev(HCI_DEV_ID);
         if (fd < 0) {
-            cout << "ERROR: Opening HCI device: " << string(strerror(errno)) << endl;
-            // incrementBleMetrics(BLE_METRIC_NUM_OPEN_DEV_FAIL);
+            TRK_PRINTF("ERROR: Opening HCI device: %s", strerror(errno));
             SLEEP_MSECS(100);
             hciDevReset();
             continue;
         }
 
         if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-            cout << "ERROR: Setting O_NONBLOCK failed: " << string(strerror(errno)) << endl;
-            // incrementBleMetrics(BLE_METRIC_NUM_FCNTL_FAIL);
+            TRK_PRINTF("ERROR: Setting O_NONBLOCK failed: %s", strerror(errno));
             close(fd);
             hciDevReset();
             SLEEP_MSECS(100);
@@ -182,7 +176,7 @@ static bool initBleScan(int &fd) {
         }
 
         if (!configureHciFilter(fd) || !setScanFilters(fd) || !enableDisableBleScan(fd, true)) {
-            cout << "ERROR: BLE scan setup failed, retry: " << string(strerror(errno)) << endl;
+            TRK_PRINTF("ERROR: BLE scan setup failed, retry: %s", strerror(errno));
             close(fd);
             hciDevReset();
             SLEEP_MSECS(100);
@@ -192,32 +186,29 @@ static bool initBleScan(int &fd) {
         return true;
     }
 
-    cout << "ERROR: BLE scan init failed after all retries" << endl;
+    TRK_PRINTF("ERROR: BLE scan init failed after all retries");
     return false;
 }
 
 bool startBleScan(BleScanOptions &options) {
     if (bleScanState.load() != BLE_SCAN_STATE_IDLE) {
-        cout << "ERROR: Scan in progress" << endl;
+        TRK_PRINTF("ERROR: Scan in progress");
         return false;
     }
 
     scanOptions = options;
     scanStopRequested.store(false);
-    // trkSemPost(__func__, &bleScanSem);
     bleScanState.store(BLE_SCAN_STATE_SCANNING);
     return true;
 }
 
 bool stopBleScan() {
     if (bleScanState.load() != BLE_SCAN_STATE_SCANNING) {
-        cout << "ERROR: Scan already stopped" << endl;
-        // scan already stopped
+        TRK_PRINTF("ERROR: Scan already stopped");
         return true;
     }
 
     scanStopRequested.store(true);
-    // trkSemPost(__func__, &bleScanSem);
     bleScanState.store(BLE_SCAN_STATE_IDLE);
     return true;
 }
@@ -226,7 +217,6 @@ void startOneShotScan(uint32_t scanDurationSec) {
     BleScanOptions scanOptions;
     scanOptions.continuous = false;
     scanOptions.scanDurationSec = scanDurationSec;
-    //scanOptions.callback = cb;
     startBleScan(scanOptions);
 }
 
@@ -235,7 +225,6 @@ void startContinuousScan(uint32_t scanDurationSec, uint32_t sleepDurationSec) {
     scanOptions.continuous = true;
     scanOptions.scanDurationSec = scanDurationSec;
     scanOptions.sleepDurationSec = sleepDurationSec;
-    //scanOptions.callback = cb;
     startBleScan(scanOptions);
 }
 
@@ -320,7 +309,7 @@ static void removeChar(char *str, char target) {
 
 device_type_t getBleDataSource(le_advertising_info *info) {
     if (info == nullptr) {
-        TRK_PRINTF("\nERROR: Invalid input parameters - BLE source could not be determined!");
+        TRK_PRINTF("ERROR: Invalid input parameters - BLE source could not be determined!");
         return DEVICE_TYPE_UNKNOWN;
     }
 
@@ -390,7 +379,7 @@ device_type_t getBleDataSource(le_advertising_info *info) {
 
 bool isValidWhiteTapeBleSource(le_advertising_info *info, device_type_t& deviceType) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR: Null Ptr - BLE source check failed!");
+        TRK_PRINTF("ERROR: Null Ptr - BLE source check failed!");
         return false;
     }
 
@@ -399,15 +388,6 @@ bool isValidWhiteTapeBleSource(le_advertising_info *info, device_type_t& deviceT
     memset(macAddr, 0, sizeof(macAddr));
     ba2str(&info->bdaddr, macAddr);
     removeChar(macAddr,':');
-
-    if ((strcmp(macAddr, "E897D628F980") == 0) && deviceType == DEVICE_TYPE_WHITE && info->length > 30) {
-        TRK_PRINTF1("TapeData:MAC_ADDR:%s,", macAddr);
-        int i = 0;
-        for (i = 0; i < info->length; i++) {
-            printf("[%d]:0x%02X",i,info->data[i]);
-        }
-        printf("\n");
-    }
 
     return ((deviceType == DEVICE_TYPE_WHITE) && (isBleRssiInRange(info->data[info->length]) == true));
 }
@@ -418,7 +398,7 @@ bool isValidWhiteTapeBleSource(le_advertising_info *info, device_type_t& deviceT
 void checkAndUpdateBleStats(le_advertising_info *info, map<string, BleScanRecord> &scanResult, device_type_t deviceType) {
 
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR: Null Ptr - Cannot check and update BLE stats");
+        TRK_PRINTF("ERROR: Null Ptr - Cannot check and update BLE stats");
         return;
     }
 
@@ -455,7 +435,7 @@ void printBlePacketData(BleDataPacket *bleData) {
         return;
     }
     /* Update this print later -
-    TRK_PRINTF("\nBLE_PKT:MAC:%s,FID:0x%02X%02X,e0:%u,t0:%d.%d,ts:%d,a0_v:%d,a0_c:%u,a0_ts:%d,pid1:%d,ts:%d,tapeID:%d,bat_volt:%f,rssi:%d", 
+    TRK_PRINTF("BLE_PKT:MAC:%s,FID:0x%02X%02X,e0:%u,t0:%d.%d,ts:%d,a0_v:%d,a0_c:%u,a0_ts:%d,pid1:%d,ts:%d,tapeID:%d,bat_volt:%f,rssi:%d", 
         bleData->mac_addr, bleData->fid1, bleData->fid2, bleData->evt_flag, bleData->curr_temp, 
         bleData->temp_violation, bleData->t1_ts, bleData->a0_val, bleData->a0_count, bleData->a0_ts,
         bleData->pid1, bleData->ts, bleData->tapeId, bleData->bat_voltage, bleData->rssi);
@@ -464,7 +444,7 @@ void printBlePacketData(BleDataPacket *bleData) {
 
 int createBleDataUrlExtension(char *urlDataBuff, size_t urlDataBuffLen, BleDataPacket *blePkt) {
     if (urlDataBuff == nullptr || urlDataBuffLen < 128 || blePkt == nullptr) {
-        TRK_PRINTF1("ERROR: Invalid input parameters, BLE data URL extension creation failed!");
+        TRK_PRINTF("ERROR: Invalid input parameters, BLE data URL extension creation failed!");
         return -1;
     }
     static char gwLat[] = "40.7064738";
@@ -516,7 +496,7 @@ int createBleDataUrlExtension(char *urlDataBuff, size_t urlDataBuffLen, BleDataP
             return URL_CREATE_SUCCESS;
         }
         default: {
-            //TRK_PRINTF1("ERROR: Unknown Ble Packet Type detected, blePktType: %d", blePkt->blePktType);
+            //TRK_PRINTF("ERROR: Unknown Ble Packet Type detected, blePktType: %d", blePkt->blePktType);
             return -2;
         }
     }
@@ -537,7 +517,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
     const uint8_t init_retry_log_throttle_sec = 30;
     map<string, BleScanRecord> scanResults;
 
-    TRK_PRINTF("\nStarted BLE Thread ...");
+    TRK_PRINTF("Started BLE Thread ...");
 
     ret = hciDevUp();
     if (ret < 0) {
@@ -547,12 +527,12 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
 
     /* Get the Gateway BLE MAC Address */
     getGatewayBLEMacAddress(bleConnectCfg.gwBleMacId);
-    TRK_PRINTF1("BLE GW MAC ID: %s", bleConnectCfg.gwBleMacId);
+    TRK_PRINTF("BLE GW MAC ID: %s", bleConnectCfg.gwBleMacId);
 
     while (keepRunning) {
         ret = initBleScan(fd);
         if ((ret == 0) || (fd < 0)) {
-            cout << "ERROR: Failed to init ble scan after retries" << init_retry_log_throttle_sec << endl;
+            TRK_PRINTF("ERROR: Failed to init ble scan after retries %d", init_retry_log_throttle_sec);
             SLEEP_SECS(retry_delay_sec);
             continue;
         }
@@ -561,7 +541,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
         startContinuousScan(bleScanTime, bleSleepTime);
 
         elapsedSec = 0;
-        cout << "BLE scan started for: " << to_string(scanOptions.scanDurationSec) << "s" << endl;
+        TRK_PRINTF("BLE Scan started for: %d seconds", scanOptions.scanDurationSec);
 
         while (elapsedSec < scanOptions.scanDurationSec) {
             if (scanStopRequested.load()) {
@@ -572,7 +552,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
             elapsedSec++;
         }
 
-        TRK_PRINTF1("Ble scan completed");
+        TRK_PRINTF("Ble scan completed");
 
         uint8_t buf[HCI_MAX_EVENT_SIZE];
         while (keepRunning) {
@@ -590,7 +570,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
             } 
             else if (len < HCI_EVENT_HDR_SIZE) {
                 // incrementBleMetrics(BLE_METRIC_NUM_SCAN_ERRORS);
-                TRK_PRINTF1("ERROR: Failed to read from hci");
+                TRK_PRINTF("ERROR: Failed to read from hci");
                 break;
             }
 
@@ -610,7 +590,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
             }
 
             /* Check if the scanned tape is in the connectable BLE list */
-            //checkIfConnectableTape(info);
+            checkIfConnectableTape(info);
 
             /* Check and update the BLE stats for the white tape. */
             checkAndUpdateBleStats(info, scanResults, deviceType);
@@ -627,8 +607,9 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                Cloud communication thread can communicate with the cloud and 
                send the data. */
             char *tapeMacAddr = blePacketData.blePktStrct.blePkt_TMP117.mac_addr;
-            if (strcmp(tapeMacAddr, "E897D628F980") == 0) {
-                //TRK_PRINTF1("Sending TMP117 BLE packet for MAC:%s ...", tapeMacAddr);
+            TRK_PRINTF("Scanned MAC: %s", tapeMacAddr);
+            if (strcmp(tapeMacAddr, "DF0F73928136") == 0) {
+                //TRK_PRINTF("Sending TMP117 BLE packet for MAC:%s ...", tapeMacAddr);
                 sendBleDataPacket(blePacketData);
 #if 0
                 BleDataPacket blePacketData_OPT3110, blePacketData_IAT, blePacketData_DPD;
@@ -639,7 +620,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 le_advertising_info *tinfo = (le_advertising_info *)tBuff;
                 /* Create OPT3110 info data */
                 bacpy(&tinfo->bdaddr, &info->bdaddr);
-                //TRK_PRINTF1("OPT3110:tinfo->bdaddr:%s, info->bdaddr:%s",tinfo->bdaddr, info->bdaddr);
+                //TRK_PRINTF("OPT3110:tinfo->bdaddr:%s, info->bdaddr:%s",tinfo->bdaddr, info->bdaddr);
                 memset(tinfo->data, 0, 32);
                 tinfo->data[7] = 0x52;
                 tinfo->data[8] = 0x58;
@@ -669,7 +650,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->length = 31;
 
                 parseBleDataPacket(tinfo, &blePacketData_OPT3110);
-                TRK_PRINTF1("Sending OPT3110 BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending OPT3110 BLE packet for MAC:%s ...", tapeMacAddr);
                 sendBleDataPacket(blePacketData_OPT3110);
 
                 /* Create IAT info data */
@@ -702,7 +683,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->length = 31;
 
                 parseBleDataPacket(tinfo, &blePacketData_IAT);
-                TRK_PRINTF1("Sending IAT BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending IAT BLE packet for MAC:%s ...", tapeMacAddr);
                 sendBleDataPacket(blePacketData_IAT);
 
                 /* Create DPD info data */
@@ -735,7 +716,7 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->length = 31;
 
                 parseBleDataPacket(tinfo, &blePacketData_DPD);
-                TRK_PRINTF1("Sending DPD BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending DPD BLE packet for MAC:%s ...", tapeMacAddr);
                 sendBleDataPacket(blePacketData_DPD);
 #endif
             }
@@ -760,21 +741,21 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
         close(fd);
 
         if (isBleContScanEnabled() == false) {
-            TRK_PRINTF1("One shot BLE scan mode enabled, Stopping BLE activity ...");
+            TRK_PRINTF("One shot BLE scan mode enabled, Stopping BLE activity ...");
             scanOptions.clear();
             return;
         }
 
         /* BLE sleep period */
-        TRK_PRINTF1("BLE Sleep Started ...");
+        TRK_PRINTF("BLE Sleep Started ...");
         SLEEP_MSECS(scanOptions.sleepDurationSec);
-        TRK_PRINTF1("BLE Sleep Stopped!");
+        TRK_PRINTF("BLE Sleep Stopped!");
     }
 }
 
 /* Cloud Communication Thread Function */
 void cloudCommicationThreadFunc() {
-    TRK_PRINTF1("Started Cloud Communication Thread ...");
+    TRK_PRINTF("Started Cloud Communication Thread ...");
 
     while (keepRunning) {
         unique_lock<mutex> lock(bleQueueMutex);
@@ -795,7 +776,7 @@ void cloudCommicationThreadFunc() {
                 sendDataUrlToCloud(dataBuff, strlen(dataBuff) + 1);
             }
             else {
-                //TRK_PRINTF1("ERROR: Failed to create URL for BLE packet, Status: %d", urlCreateStatus);
+                //TRK_PRINTF("ERROR: Failed to create URL for BLE packet, Status: %d", urlCreateStatus);
             }
             lock.lock();
         }
@@ -804,7 +785,7 @@ void cloudCommicationThreadFunc() {
 
 /* Signal handler for the keyboard Interrupt */
 void keyboardIrqHandler(int signum) {
-    TRK_PRINTF("\nReceived signal:%d, exiting...", signum);
+    TRK_PRINTF("Received signal:%d, exiting...", signum);
     keepRunning = false;
     bleQueueCondVar.notify_all();
 }
@@ -816,7 +797,7 @@ void sysInit(void) {
 int main(int argc, char *argv[]) {
     /* Check and parse the input arguments - To be removed later */
     if (argc < 3) {
-        TRK_PRINTF1("ERROR: Invalid Input Parameters");
+        TRK_PRINTF("ERROR: Invalid Input Parameters");
         return -1;
     }
 
@@ -832,7 +813,7 @@ int main(int argc, char *argv[]) {
     /* Create thread to communicate to the cloud */
     thread cloudCommThread(cloudCommicationThreadFunc);
     thread bleScanThread(bleScanThreadFunc, bleScanTime, bleSleepTime);
-    //thread bleConnectThread(bleConnectThreadFunc);
+    thread bleConnectThread(bleConnectThreadFunc);
 
     /* The main thread sleeps for 1 second and checks the running status */
     while(keepRunning) {
@@ -842,8 +823,8 @@ int main(int argc, char *argv[]) {
 
     cloudCommThread.join();
     bleScanThread.join();
-    //bleConnectThread.join();
+    bleConnectThread.join();
 
-    TRK_PRINTF1("Program exited cleanly");
+    TRK_PRINTF("Program exited cleanly");
     return 0;
 }

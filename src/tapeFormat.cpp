@@ -23,7 +23,7 @@ BlePacketType getBlePacketType(le_advertising_info *info) {
         case QUARTZ_SENSOR_DPD_TAPE_ID:
             return QuartzSensor_DPD;
         default:
-            //TRK_PRINTF1("ERROR: Unknown Ble packet type!");
+            //TRK_PRINTF("ERROR: Unknown Ble packet type!");
             return QuartzSensor_Unknown;
     }
 }
@@ -35,7 +35,7 @@ uint8_t getQaurtzEventFlag(le_advertising_info *info) {
 
 void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to BLE data packet.");
+        TRK_PRINTF("ERROR: nullptr - Could not parse BLE adv data to BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
 
@@ -56,7 +56,7 @@ void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
             parseBleAdvData_QuartzDPD(info, &bleDataPkt->blePktStrct.blePkt_DPD);
             break;
         default:
-            //TRK_PRINTF1("ERROR: Unknown BLE packet type detected");
+            //TRK_PRINTF("ERROR: Unknown BLE packet type detected");
             break;
     }
 }
@@ -76,7 +76,7 @@ static void removeChar(char *str, char target) {
 
 static void parseBleAdvData_QuartzTMP117(le_advertising_info *info, BlePacket_QuartzTMP117 *blePkt) {
     if (info == nullptr || blePkt == nullptr) {
-        TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to TMP117 BLE data packet.");
+        TRK_PRINTF("ERROR: nullptr - Could not parse BLE adv data to TMP117 BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
 
@@ -104,11 +104,11 @@ static void parseBleAdvData_QuartzTMP117(le_advertising_info *info, BlePacket_Qu
 
 static void parseBleAdvData_QuartzOPT3110(le_advertising_info *info, BlePacket_QuartzOPT3110 *blePkt) {
     if (info == nullptr || blePkt == nullptr) {
-        TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
+        TRK_PRINTF("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
 
-    TRK_PRINTF1("Parsing OPT3110 BLE Adv Data ...");
+    TRK_PRINTF("Parsing OPT3110 BLE Adv Data ...");
 
     /* MAC Address */
     memset(blePkt->mac_addr, 0, sizeof(blePkt->mac_addr));
@@ -134,7 +134,7 @@ static void parseBleAdvData_QuartzOPT3110(le_advertising_info *info, BlePacket_Q
 
 static void parseBleAdvData_QuartzIAT(le_advertising_info *info, BlePacket_IAT *blePkt) {
     if (info == nullptr || blePkt == nullptr) {
-        TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
+        TRK_PRINTF("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
 
@@ -161,7 +161,7 @@ static void parseBleAdvData_QuartzIAT(le_advertising_info *info, BlePacket_IAT *
 
 static void parseBleAdvData_QuartzDPD(le_advertising_info *info, BlePacket_DPD *blePkt) {
     if (info == nullptr || blePkt == nullptr) {
-        TRK_PRINTF1("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
+        TRK_PRINTF("ERROR: nullptr - Could not parse BLE adv data to OPT3110 BLE data packet.");
         exit(EXIT_ERR_NULL_PTR);
     }
 
@@ -187,7 +187,7 @@ static void parseBleAdvData_QuartzDPD(le_advertising_info *info, BlePacket_DPD *
 
 static uint8_t getEvtFlag_QuartzTMP117(le_advertising_info *info) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR - Null ptr. Cannot get TMP117 BLE Evt Flag");
+        TRK_PRINTF("ERROR - Null ptr. Cannot get TMP117 BLE Evt Flag");
         return 0;
     }
     uint8_t blePktEvtFlag = info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET];
@@ -196,7 +196,7 @@ static uint8_t getEvtFlag_QuartzTMP117(le_advertising_info *info) {
 
 static uint8_t getEvtFlag_QuartzOPT3110(le_advertising_info *info) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR - Null ptr. Cannot get OPT3110 BLE Evt Flag");
+        TRK_PRINTF("ERROR - Null ptr. Cannot get OPT3110 BLE Evt Flag");
         return 0;
     }
     uint8_t blePktEvtFlag = info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET];
@@ -205,7 +205,7 @@ static uint8_t getEvtFlag_QuartzOPT3110(le_advertising_info *info) {
 
 static uint8_t getEvtFlag_QuartzIAT(le_advertising_info *info) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR - Null ptr. Cannot get IAT BLE Evt Flag");
+        TRK_PRINTF("ERROR - Null ptr. Cannot get IAT BLE Evt Flag");
         return 0;
     }
     uint8_t blePktEvtFlag = info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET];
@@ -214,7 +214,7 @@ static uint8_t getEvtFlag_QuartzIAT(le_advertising_info *info) {
 
 static uint8_t getEvtFlag_QuartzDPD(le_advertising_info *info) {
     if (info == nullptr) {
-        TRK_PRINTF1("ERROR - Null ptr. Cannot get DPD BLE Evt Flag");
+        TRK_PRINTF("ERROR - Null ptr. Cannot get DPD BLE Evt Flag");
         return 0;
     }
     uint8_t blePktEvtFlag = info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET];

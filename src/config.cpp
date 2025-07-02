@@ -103,12 +103,12 @@ int readSysConfigFile(void) {
         gwCfg.fwVersion = dupOrNull(fwVersion);
         bleConnectCfg.readTapeAgainDelaySecs = readTapeAgainDelaySecs;
 
-		TRK_PRINTF1("=======================================================================================");
-        TRK_PRINTF1("%-25s = %s", "fw_version", gwCfg.fwVersion);
-		TRK_PRINTF1("%-25s = %s", "instance", urlCfg.instance);
-		TRK_PRINTF1("%-25s = %s", "gwLat", gwCfg.gwLat);
-		TRK_PRINTF1("%-25s = %s", "gwLon", gwCfg.gwLon);
-		TRK_PRINTF1("%-25s = %d", "read_tape_again_delay", bleConnectCfg.readTapeAgainDelaySecs);
+		TRK_PRINTF("=======================================================================================");
+        TRK_PRINTF("%-25s = %s", "fw_version", gwCfg.fwVersion);
+		TRK_PRINTF("%-25s = %s", "instance", urlCfg.instance);
+		TRK_PRINTF("%-25s = %s", "gwLat", gwCfg.gwLat);
+		TRK_PRINTF("%-25s = %s", "gwLon", gwCfg.gwLon);
+		TRK_PRINTF("%-25s = %d", "read_tape_again_delay", bleConnectCfg.readTapeAgainDelaySecs);
 
         if (connectable_tape == NULL)
 		{
@@ -132,9 +132,9 @@ int readSysConfigFile(void) {
             /* Skip if formatting failed or invalid MAC address */
             if (macAddr.empty()) continue;
             bleConnectCfg.tapeList[macAddr] = std::make_unique<tapeConfig>(macAddr, 0, false, false, 0, 0);
-            TRK_PRINTF1("BLE Connectable ID: %s", bleConnectCfg.tapeList[macAddr]->macAddr.c_str());
+            TRK_PRINTF("BLE Connectable ID: %s", bleConnectCfg.tapeList[macAddr]->macAddr.c_str());
 		}
-		TRK_PRINTF1("=======================================================================================");
+		TRK_PRINTF("=======================================================================================");
     }
 	else
 	{

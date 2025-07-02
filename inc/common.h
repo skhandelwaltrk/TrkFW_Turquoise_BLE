@@ -29,17 +29,10 @@ using namespace std;
 #define SLEEP_MSECS(ms)                           (usleep(ms * 1000))
 #define SLEEP_SECS(s)                             (sleep(s))
 
-#define TRK_PRINTF1(fmt, ...)          \
+#define TRK_PRINTF(fmt, ...)          \
   do {                                \
     printf(fmt "\n", ##__VA_ARGS__);  \
     fflush(stdout);                   \
-  } while (0)
-//
-
-#define TRK_PRINTF(...)  \
-  do {                   \
-    printf(__VA_ARGS__); \
-    fflush(stdout);      \
   } while (0)
 //
 
