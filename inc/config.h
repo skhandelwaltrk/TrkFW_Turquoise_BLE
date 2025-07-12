@@ -48,6 +48,7 @@ typedef struct gatewayConfig {
     const char *gwId;
     const char *gwLat;
     const char *gwLon;
+    std::string gwMacAddr;
     const char *fwVersion;
 } gatewayConfig;
 
@@ -125,5 +126,14 @@ inline void formatMacAddrStr(std::string& macStr) {
     /* Invalid MAC Address format */
     macStr.clear();
 }
+
+/**
+ * @brief Retrieves the MAC address of a network interface.
+ *
+ * @param interface The name of the network interface (e.g., "wlan0").
+ *                  Defaults to "wlan0" if not specified.
+ * @return true if successful, false otherwise.
+ */
+bool getIfaceMacAddress(const char* interface = "wlan0");
 
 #endif /* _CONFIG_H_ */

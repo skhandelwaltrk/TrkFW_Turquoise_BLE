@@ -8,10 +8,10 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 #include "tapeFormat.h"
 
 using namespace std;
-
 
 /* Program Exit Reasons */
 #define EXIT_ERR_INVALID_ARGS                     (-2)
@@ -84,10 +84,7 @@ typedef enum e_QuartzEventFlag {
   TemperatureViolationMode      = 63
 } e_QuartzEventFlag;
 
-//extern queue<BleDataPacket> bleDataQueue;
-//extern mutex bleQueueMutex;
-//extern condition_variable bleQueueCondVar;
-extern bool keepRunning;
+extern std::atomic<bool> keepRunning;
 
 /* Inline functions */
 inline time_t getEpochTimeSecs(void) {

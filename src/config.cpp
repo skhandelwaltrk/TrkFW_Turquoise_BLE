@@ -6,6 +6,10 @@
 #include "config.h"
 #include "common.h"
 #include "cloudComm.h"
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #define SYS_CONFIG_FILE_PATH        "sysConfig.ini"
 
@@ -145,4 +149,54 @@ int readSysConfigFile(void) {
 
     config_destroy(&cfg);
     return 0;
+}
+
+/**
+ * @brief Retrieves the MAC address of a network interface.
+ *
+ * @param interface The name of the network interface (e.g., "wlan0").
+ *                  Defaults to "wlan0" if not specified.
+ * @return true if successful, false otherwise.
+ */
+bool getIfaceMacAddress(const char* interface) {
+    if((interface==nullptr) || (std::strlen(interface)==0U)) {
+        TRK_PRINTF("[getIfaceMacAddress] ERROR: Invalid input parameters");
+        return false;
+    }
+
+    int fd=-1;
+    struct ifreq ifr{};
+    unsigned char* mac=nullptr;
+    char macBuffer[18]={0};
+
+    /* Create socket */
+    fd=socket(AF_INET,SOCK_DGRAM,0);
+    if(fd==-1) {
+        TRK_PRINTF("[getIfaceMacAddress] ERROR: Internal setup failed");
+        return false;
+    }
+
+    std::strncpy(ifr.ifr_name,interface,IFNAMSIZ-1U);
+    ifr.ifr_name[IFNAMSIZ-1U]='\0';
+
+    /* Fetch MAC address */
+    if(ioctl(fd,SIOCGIFHWADDR,&ifr)==-1) {
+        TRK_PRINTF("[getIfaceMacAddress] ERROR: MAC fetch failed");
+        (void)close(fd);
+        return false;
+    }
+
+    (void)close(fd);
+
+    /* Format MAC address */
+    mac=reinterpret_cast<unsigned char*>(ifr.ifr_hwaddr.sa_data);
+    if(std::snprintf(macBuffer,sizeof(macBuffer),"%02X:%02X:%02X:%02X:%02X:%02X",
+        mac[0],mac[1],mac[2],mac[3],mac[4],mac[5])<0) {
+        TRK_PRINTF("[getIfaceMacAddress] ERROR: MAC format failed");
+        return false;
+    }
+
+    /* Save the gateway MAC address to gateway configuration. */
+    gwCfg.gwMacAddr = macBuffer;
+    return true;
 }

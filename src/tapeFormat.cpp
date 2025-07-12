@@ -11,6 +11,13 @@ static uint8_t getEvtFlag_QuartzIAT(le_advertising_info *info);
 static uint8_t getEvtFlag_QuartzDPD(le_advertising_info *info);
 static void removeChar(char *str, char target);
 
+inline uint16_t getTapeId(le_advertising_info *info) {
+    uint8_t startIdx = QUARTZ_BLE_ADV_PKT_TAPE_ID_IDX;
+    uint16_t tapeId = (((uint16_t)info->data[startIdx] << 8) |
+            ((uint16_t)info->data[startIdx + 1]));
+    return tapeId;
+}
+
 BlePacketType getBlePacketType(le_advertising_info *info) {
     uint16_t tapeId = getTapeId(info);
     switch (tapeId) {
@@ -23,7 +30,6 @@ BlePacketType getBlePacketType(le_advertising_info *info) {
         case QUARTZ_SENSOR_DPD_TAPE_ID:
             return QuartzSensor_DPD;
         default:
-            //TRK_PRINTF("ERROR: Unknown Ble packet type!");
             return QuartzSensor_Unknown;
     }
 }
@@ -31,6 +37,11 @@ BlePacketType getBlePacketType(le_advertising_info *info) {
 uint8_t getQaurtzEventFlag(le_advertising_info *info) {
     /* Update the BLE event flag for Turquoise GW */
     return ((uint8_t)UpdateEventFlagForQuartz(info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX + QUARTZ_BLE_ADV_PKT_EVT_FLAG_OFFSET]));
+}
+
+static inline bool isQuartzSensorBleData(BlePacketType blePktType) {
+    return (blePktType == QuartzSensor_TMP117 || blePktType == QuartzSensor_OPT3110 ||
+            blePktType == QuartzSensor_IAT || blePktType == QuartzSensor_DPD);
 }
 
 void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
@@ -41,6 +52,16 @@ void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
 
     /* Determine the BLE packet type based on the tapeID */
     bleDataPkt->blePktType = getBlePacketType(info);
+    TRK_PRINTF("DBG3: Get BLE Packet Type: %d", bleDataPkt->blePktType);
+
+    /* If not Quartz sensor type, do not parse the BLE data packet */
+    if (isQuartzSensorBleData(bleDataPkt->blePktType) == false) {
+        return;
+    }
+
+#ifdef FEATURE_G1_URL_STR_FORMAT
+    memcpy(bleDataPkt->bleBuff, &info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX], WHITE_TAPE_DATA_PACKET_LEN);
+#endif
 
     switch (bleDataPkt->blePktType) {
         case QuartzSensor_TMP117:

@@ -6,6 +6,8 @@
 #include <functional>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
+#include <condition_variable>
+#include "tapeFormat.h"
 
 using namespace std;
 
@@ -32,10 +34,15 @@ typedef struct {
     int avgRssi;
     // seen count
     int seenCount;
+    // last processed time
+    time_t lastProcTimeSecs;
+    // Raw BLE data from the last processed scan
+    uint8_t lastProcBleData[WHITE_TAPE_DATA_PACKET_LEN];
     // type of device seen
     device_type_t deviceType;
 } BleScanRecord;
 
+extern std::condition_variable tapeListCondVar;
 typedef bool (*ScanResultCallback)(std::map<std::string, BleScanRecord> &);
 
 void startContinuousScan(uint32_t scanDurationSec, uint32_t sleepDurationSec);
@@ -44,6 +51,9 @@ bool stopBleScan();
 
 int getGatewayBLEMacAddress(char *macAddress);
 void convertBdAddrToStr(bdaddr_t *addr, char *output);
+
+/* Dups check function */
+bool isNotDuplicateBleData(le_advertising_info *info, map<string, BleScanRecord> &scanResult);
 
 /**
  * @brief Checks if a scanned BLE advertisement corresponds to a connectable tape.
@@ -91,5 +101,7 @@ int connectToBleTape(const std::string dstMacAddr, uint8_t dst_type = BDADDR_LE_
  * @note This function is intended to be run in its own thread.
  */
 void bleConnectThreadFunc();
+
+
 
 #endif /* _BLE_H */

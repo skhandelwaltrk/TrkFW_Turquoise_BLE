@@ -13,6 +13,9 @@ extern "C" {
 /* Defined header files */
 #include "common.h"
 
+#define FEATURE_G1_URL_STR_FORMAT
+//#define FEATURE_ENAHNCED_URL_STR_FORMAT
+
 #define RFID_GW_COMPANY_IDENTIFIER_HIGH_INDEX                 (2u)
 #define RFID_GW_COMPANY_IDENTIFIER_LOW_INDEX                  (3u)
 #define RFID_GW_TRACK_IDENTIFIER_HIGH_INDEX                   (4u)
@@ -332,11 +335,13 @@ typedef union BleDataPacketStruct {
 */
 typedef struct BleDataPacket {
     BleDataPacketStruct blePktStrct;
+#ifdef FEATURE_G1_URL_STR_FORMAT
+    uint8_t bleBuff[WHITE_TAPE_DATA_PACKET_LEN];
+#endif
     BlePacketType blePktType;
 } BleDataPacket;
 
 /* Inline Functions */
-
 
 inline uint16_t getTimestampU16(le_advertising_info *info, uint8_t byteOffset) {
     uint8_t startIdx = QUARTZ_BLE_ADV_PKT_DATA_START_IDX + byteOffset;
@@ -363,12 +368,6 @@ inline uint32_t getLimePid(le_advertising_info *info, uint8_t byteOffset) {
     return ((((uint32_t)info->data[startIdx + 2]) << 16) |
            (((uint32_t)info->data[startIdx + 1]) << 8)  |
            ((uint32_t)info->data[startIdx]));
-}
-
-inline uint16_t getTapeId(le_advertising_info *info) {
-    uint8_t startIdx = QUARTZ_BLE_ADV_PKT_TAPE_ID_IDX;
-    return (((uint16_t)info->data[startIdx] << 8) |
-            ((uint16_t)info->data[startIdx + 1]));
 }
 
 inline uint16_t getFid(le_advertising_info *info) {

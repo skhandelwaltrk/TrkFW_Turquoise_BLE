@@ -69,8 +69,14 @@ static void createCloudDataUrl(char* urlBuff, size_t urlBuffLen, const char* ins
     }
 }
 
+static size_t curlReqWriteCb(void *respData, size_t size, size_t nmemb, void *userp) {
+    size_t totalSize = size * nmemb;
+    strncat((char *)userp, (char *)respData, totalSize);
+    return totalSize;
+}
+
 const char* getGwId(void) {
-    return TURQUOISE_GW_ID;
+    return gwCfg.gwId;
 }
 
 /* Send the data URL to the cloud */
@@ -90,13 +96,9 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
     memset(urlBuff, 0, MAX_URL_LEN);
 
     /* Create the Cloud Data URL that contains the BLE data. */
-    createCloudDataUrl(urlBuff, MAX_URL_LEN, urlCfg.instance, urlCfg.urlAlive, packetDataBuff, packetDataLen);
-    TRK_PRINTF("Curl_Proc %d: curl rqst going=%s", ++curlProcessCount, urlBuff);
-    /* DBG - Remove below line and test cloud comm later when URL is verified
-       and device is registered */
-    return 0;
+    createCloudDataUrl(urlBuff, MAX_URL_LEN, urlCfg.instance, urlCfg.urlExtension, packetDataBuff, packetDataLen);
 
-    // Response data container
+    /* Response data container */
     string response_data;
 
     if (!initialized) {
@@ -113,23 +115,12 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
             return 1;
         }
 
-        // Set DNS cache timeout
+        /* Set the DNS cache timeout */
         curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, CURL_REQUEST_DNS_CACHE_TIMEOUT_SECS);
 
         initialized = true;
     }
 
-    /* Test a single request first */
-    if (curlProcessCount > 0) {
-        return 1;
-    }
-
-    //memset(CallString, '\0', sizeof(CallString));
-    /* Also include the null terminator character at the end */
-    //snprintf(CallString, urlBuffLen + 1, "%s", urlBuff);
-    //TRK_PRINTF("Curl_Proc %d: curl rqst going=%s", ++curlProcessCount, CallString);
-
-    //err_ret = curl_easy_setopt(curl, CURLOPT_URL, CallString);
     TRK_PRINTF("Curl_Proc %d: curl rqst going=%s", ++curlProcessCount, urlBuff);
     err_ret = curl_easy_setopt(curl, CURLOPT_URL, urlBuff);
     if (err_ret != 0) {
@@ -151,6 +142,16 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
         return 1;
     }
 
+    err_ret = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlReqWriteCb);
+    if (err_ret != 0) {
+        TRK_PRINTF("Curl_Proc: failed set CURLOPT_WRITEFUNCTION");
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        initialized = false;
+        curl = nullptr;
+        return 1;
+    }
+
     err_ret = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
     if (err_ret != 0) {
         TRK_PRINTF("Curl_Proc: failed set CURLOPT_WRITEDATA");
@@ -161,10 +162,10 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
         return 1;
     }
 
-    // Perform the request
+    /* Perform the request */
     CURLcode res = curl_easy_perform(curl);
 
-    // Check for errors
+    /* Check if the curl request was sucessful or not */
     if (res != CURLE_OK) {
         TRK_PRINTF("Curl_Proc: curl_easy_perform() failed: %s", curl_easy_strerror(res));
         curl_easy_cleanup(curl);
@@ -172,6 +173,18 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
         initialized = false;
         curl = nullptr;
         return 1;
+    }
+    else {
+        long response_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+
+        if (response_code == 200) {
+            TRK_PRINTF("Curl_Proc %d: Received HTTP 200 OK", curlProcessCount);
+        }
+        else {
+            TRK_PRINTF("Curl_Proc %d: Received HTTP response code: %ld", curlProcessCount, response_code);
+        }
+        //TRK_PRINTF("Curl_Proc: Curl rqst %d successful, Response: %s", curlProcessCount, response_data.c_str());
     }
 
     curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &total_time);
@@ -181,5 +194,3 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
 
     return 0;
 }
-
-
