@@ -50,6 +50,7 @@ typedef struct gatewayConfig {
     const char *gwLon;
     std::string gwMacAddr;
     const char *fwVersion;
+    const char *curlReqFormat;
 } gatewayConfig;
 
 typedef struct bleConnectConfig {
@@ -101,11 +102,9 @@ static inline bool isRawMacAddress(const std::string& mac) {
 
 /**
  * @brief Converts a raw or formatted MAC string into colon-separated format.
- *
- *        - If the input is already colon-formatted and valid, it's left unchanged.
- *        - If it's a valid 12-digit hex string, it's formatted.
- *        - If it's invalid, the string is cleared.
- *
+ *      - If the input is already colon-formatted and valid, it's left unchanged.
+ *      - If it's a valid 12-digit hex string, it's formatted.
+ *      - If it's invalid, the string is cleared.
  * @param macStr Reference to the MAC address string to format in place.
  */
 inline void formatMacAddrStr(std::string& macStr) {
@@ -135,5 +134,12 @@ inline void formatMacAddrStr(std::string& macStr) {
  * @return true if successful, false otherwise.
  */
 bool getIfaceMacAddress(const char* interface = "wlan0");
+
+/**
+* @brief Checks if the curl request format is G1 or formatted.
+*
+* @return true if curl request format is G1, false otherwise
+*/
+bool isCurlReqFormatG1(void);
 
 #endif /* _CONFIG_H_ */

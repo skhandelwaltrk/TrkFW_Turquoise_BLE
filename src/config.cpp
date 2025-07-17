@@ -84,6 +84,7 @@ int readSysConfigFile(void) {
     const char *instance = nullptr;
     const char *fwVersion = nullptr;
     const char *gwMacAddr = nullptr;
+    const char *curlReqFormat = nullptr;
     int readTapeAgainDelaySecs = 10;
 
     config_setting_t *connectable_tape;
@@ -96,6 +97,7 @@ int readSysConfigFile(void) {
         config_lookup_string(&cfg, "fw_version", &fwVersion) &&
         config_lookup_string(&cfg, "gw_mac_address", &gwMacAddr) &&
         config_lookup_int(&cfg, "ble_read_tape_again_delay", &readTapeAgainDelaySecs) &&
+        config_lookup_string(&cfg, "curl_req_format", &curlReqFormat) &&
         (connectable_tape = config_lookup(&cfg, "ble_connectable_tapes")) != NULL)
 	{
         urlCfg.instance = dupOrNull(instance);
@@ -105,6 +107,7 @@ int readSysConfigFile(void) {
         gwCfg.gwLat = dupOrNull(gwLat);
         gwCfg.gwLon = dupOrNull(gwLon);
         gwCfg.fwVersion = dupOrNull(fwVersion);
+        gwCfg.curlReqFormat = dupOrNull(curlReqFormat);
         bleConnectCfg.readTapeAgainDelaySecs = readTapeAgainDelaySecs;
 
 		TRK_PRINTF("=======================================================================================");
@@ -199,4 +202,11 @@ bool getIfaceMacAddress(const char* interface) {
     /* Save the gateway MAC address to gateway configuration. */
     gwCfg.gwMacAddr = macBuffer;
     return true;
+}
+
+bool isCurlReqFormatG1(void) {
+    if (strcmp(gwCfg.curlReqFormat, "G1") == 0) {
+        return true;
+    }
+    return false;
 }

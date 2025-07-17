@@ -448,102 +448,95 @@ int createBleDataUrlExtension(char *urlDataBuff, size_t urlDataBuffLen, BleDataP
         return -1;
     }
     static int seqNumber[QuartzSensor_Max] = {0};
-
-#ifdef FEATURE_G1_URL_STR_FORMAT
     uint8_t *rBuff = blePkt->bleBuff;
-#else
-    static char gwLat[] = "40.7064738";
-    static char gwLon[] = "-74.0103607";
-#endif
     memset(urlDataBuff, 0, urlDataBuffLen);
 
     switch(blePkt->blePktType) {
         case QuartzSensor_TMP117: {
             BlePacket_QuartzTMP117 *bleTmp117 = &blePkt->blePktStrct.blePkt_TMP117;
-#ifdef FEATURE_G1_URL_STR_FORMAT
-            
-            snprintf(urlDataBuff, urlDataBuffLen, 
-            "?G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X"
-            "&rid=%s&C=%d&id=%s&type=%s&ts=%ld&rssi0=%d" "&clat=%s&clon=%s&st=%02X%02X", rBuff[0], rBuff[1],
-            rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
-            rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20],
-            rBuff[21], rBuff[22], rBuff[23], getGwId(), ++seqNumber[QuartzSensor_TMP117], bleTmp117->mac_addr,
-            getGwId(), time(nullptr), bleTmp117->rssi, gwCfg.gwLat, gwCfg.gwLon, rBuff[0], rBuff[1]);
-
-            /*
-            snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&ts=%ld&C=%d&id=%s&rssi0=%d"
-            "&G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-            getGwId(), time(nullptr), ++seqNumber[QuartzSensor_TMP117], bleTmp117->mac_addr, bleTmp117->rssi,
-            rBuff[0], rBuff[1], rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
-            rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20], rBuff[21], rBuff[22], rBuff[23]);
-            */
-#else
-            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
-            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&t2=%.2f&t2ts=%d&pid=%d&seqId=%d&tapeId=0x%04X"
-            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleTmp117->t0_ts,
-            ++seqNumber[QuartzSensor_TMP117], bleTmp117->mac_addr, bleTmp117->rssi, bleTmp117->evt_flag,
-            bleTmp117->t0, bleTmp117->t1, bleTmp117->t1_ts, bleTmp117->t2, bleTmp117->t2_ts,
-            bleTmp117->pid, bleTmp117->seqId, bleTmp117->tapeId, bleTmp117->bat, gwLat, gwLon, getGwId());
-#endif
+            if (isCurlReqFormatG1() == true) {
+                snprintf(urlDataBuff, urlDataBuffLen, 
+                "?G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X"
+                "&rid=%s&C=%d&id=%s&type=%s&ts=%ld&rssi0=%d" "&clat=%s&clon=%s&st=%02X%02X", rBuff[0], rBuff[1],
+                rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
+                rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20],
+                rBuff[21], rBuff[22], rBuff[23], getGwId(), ++seqNumber[QuartzSensor_TMP117], bleTmp117->mac_addr,
+                getGwId(), time(nullptr), bleTmp117->rssi, gwCfg.gwLat, gwCfg.gwLon, rBuff[0], rBuff[1]);
+            }
+            else {
+                snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&C=%d&id=%s&type=%s&ts=%d&rssi=%d"
+                "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&t2=%.2f&t2ts=%d&pid=%d&seqId=%d&tapeId=0x%04X"
+                "&bat=%.3f&clat=%s&clon=%s&st=5258", getGwId(), ++seqNumber[QuartzSensor_TMP117],
+                bleTmp117->mac_addr, getGwId(), bleTmp117->t0_ts, bleTmp117->rssi, bleTmp117->evt_flag,
+                bleTmp117->t0, bleTmp117->t1, bleTmp117->t1_ts, bleTmp117->t2, bleTmp117->t2_ts,
+                bleTmp117->pid, bleTmp117->seqId, bleTmp117->tapeId, bleTmp117->bat, gwCfg.gwLat, gwCfg.gwLon);
+            }
             return URL_CREATE_SUCCESS;
         }
         case QuartzSensor_OPT3110: {
             BlePacket_QuartzOPT3110 *bleOpt3110 = &blePkt->blePktStrct.blePkt_OPT3110;
-#ifdef FEATURE_G1_URL_STR_FORMAT
-            snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&ts=%ld&C=%d&id=%s&rssi0=%d"
-            "&G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-            getGwId(), time(nullptr), ++seqNumber[QuartzSensor_OPT3110], bleOpt3110->mac_addr, bleOpt3110->rssi,
-            rBuff[0], rBuff[1], rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
-            rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20], rBuff[21], rBuff[22], rBuff[23]);
-#else
-            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
-            "&e0=%d&t0=%.2f&l0=%d&l0ts=%d&l1=%d&l1ts=%d&pid=%d&lbat=%.2f&seqId=%d"
-            "&tapeId=0x%04X&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleOpt3110->t0_ts,
-            ++seqNumber[QuartzSensor_OPT3110], bleOpt3110->mac_addr, bleOpt3110->rssi, bleOpt3110->evt_flag,
-            bleOpt3110->t0, bleOpt3110->l0, bleOpt3110->l0_ts, bleOpt3110->l1, bleOpt3110->l1_ts, bleOpt3110->pid,
-            (((float)bleOpt3110->lime_bat)/100.0f), bleOpt3110->seqId, bleOpt3110->tapeId, bleOpt3110->bat,
-            gwLat, gwLon, getGwId());
-#endif
+            if (isCurlReqFormatG1() == true) {
+                snprintf(urlDataBuff, urlDataBuffLen, 
+                "?G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X"
+                "&rid=%s&C=%d&id=%s&type=%s&ts=%ld&rssi0=%d" "&clat=%s&clon=%s&st=%02X%02X", rBuff[0], rBuff[1],
+                rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
+                rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20],
+                rBuff[21], rBuff[22], rBuff[23], getGwId(), ++seqNumber[QuartzSensor_OPT3110], bleOpt3110->mac_addr,
+                getGwId(), time(nullptr), bleOpt3110->rssi, gwCfg.gwLat, gwCfg.gwLon, rBuff[0], rBuff[1]);
+            }
+            else {
+                snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&C=%d&id=%s&type=%s&ts=%d&rssi=%d"
+                "&e0=%d&t0=%.2f&l0=%d&l0ts=%d&l1=%d&l1ts=%d&pid=%d&lbat=%.2f&seqId=%d"
+                "&tapeId=0x%04X&bat=%.3f&clat=%s&clon=%s&st=5258", getGwId(), ++seqNumber[QuartzSensor_OPT3110],
+                bleOpt3110->mac_addr, getGwId(), bleOpt3110->t0_ts, bleOpt3110->rssi, bleOpt3110->evt_flag,
+                bleOpt3110->t0, bleOpt3110->l0, bleOpt3110->l0_ts, bleOpt3110->l1, bleOpt3110->l1_ts, bleOpt3110->pid,
+                (((float)bleOpt3110->lime_bat)/100.0f), bleOpt3110->seqId, bleOpt3110->tapeId, bleOpt3110->bat,
+                gwCfg.gwLat, gwCfg.gwLon, getGwId());
+            }
             return URL_CREATE_SUCCESS;
         }
         case QuartzSensor_IAT: {
             BlePacket_IAT *bleIAT = &blePkt->blePktStrct.blePkt_IAT;
-#ifdef FEATURE_G1_URL_STR_FORMAT
-            snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&ts=%ld&C=%d&id=%s&rssi0=%d"
-            "&G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-            getGwId(), time(nullptr), ++seqNumber[QuartzSensor_IAT], bleIAT->mac_addr, bleIAT->rssi,
-            rBuff[0], rBuff[1], rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
-            rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20], rBuff[21], rBuff[22], rBuff[23]);
-#else
-            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
-            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&l0=%d&l0ts=%d&a0v=%d&a0c=%d&tapeId=0x%04X"
-            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleIAT->ts,
-            ++seqNumber[QuartzSensor_IAT], bleIAT->mac_addr, bleIAT->rssi, bleIAT->evt_flag,
-            bleIAT->t0, bleIAT->t1, bleIAT->t1_ts, bleIAT->l0, bleIAT->l0_ts, bleIAT->a0_val,
-            bleIAT->a0_count, bleIAT->tapeId, bleIAT->bat, gwLat, gwLon, getGwId());
-#endif
+            if (isCurlReqFormatG1() == true) {
+                snprintf(urlDataBuff, urlDataBuffLen, 
+                "?G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X"
+                "&rid=%s&C=%d&id=%s&type=%s&ts=%ld&rssi0=%d" "&clat=%s&clon=%s&st=%02X%02X", rBuff[0], rBuff[1],
+                rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
+                rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20],
+                rBuff[21], rBuff[22], rBuff[23], getGwId(), ++seqNumber[QuartzSensor_IAT], bleIAT->mac_addr,
+                getGwId(), time(nullptr), bleIAT->rssi, gwCfg.gwLat, gwCfg.gwLon, rBuff[0], rBuff[1]);
+            }
+            else {
+                snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&C=%d&id=%s&type=%s&ts=%d&rssi=%d"
+                "&e0=%d&t0=%.2f&t1=%.2f&l0=%d&l0ts=%d&a0v=%d&a0c=%d&tapeId=0x%04X"
+                "&bat=%.3f&clat=%s&clon=%s&st=5258", getGwId(), ++seqNumber[QuartzSensor_IAT],
+                bleIAT->mac_addr, getGwId(), bleIAT->t1_ts, bleIAT->rssi, bleIAT->evt_flag, bleIAT->t0, bleIAT->t1,
+                bleIAT->l0, bleIAT->l0_ts, bleIAT->a0_val, bleIAT->a0_count, bleIAT->tapeId,
+                bleIAT->bat, gwCfg.gwLat, gwCfg.gwLon);
+            }
             return URL_CREATE_SUCCESS;
         }
         case QuartzSensor_DPD: {
             BlePacket_DPD *bleDPD = &blePkt->blePktStrct.blePkt_DPD;
-#ifdef FEATURE_G1_URL_STR_FORMAT
-            snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&ts=%ld&C=%d&id=%s&rssi0=%d"
-            "&G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-            getGwId(), time(nullptr), ++seqNumber[QuartzSensor_DPD], bleDPD->mac_addr, bleDPD->rssi,
-            rBuff[0], rBuff[1], rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
-            rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20], rBuff[21], rBuff[22], rBuff[23]);
-#else
-            snprintf(urlDataBuff, urlDataBuffLen, "?gid=%s&ts=%d&C=%d&id=%s&rssi=%d"
-            "&e0=%d&t0=%.2f&t1=%.2f&t1ts=%d&l0=%d&l0ts=%d&l1=%d&tapeId=0x%04X"
-            "&bat=%.3f&clat=%s&clon=%s&type=%s&st=5261", getGwId(), bleDPD->ts,
-            ++seqNumber[QuartzSensor_DPD], bleDPD->mac_addr, bleDPD->rssi, bleDPD->evt_flag,
-            bleDPD->t0, bleDPD->t1, bleDPD->t1_ts, bleDPD->l0, bleDPD->l0_ts, bleDPD->l1,
-            bleDPD->tapeId, bleDPD->bat, gwLat, gwLon, getGwId());
-#endif
+            if (isCurlReqFormatG1() == true) {
+                snprintf(urlDataBuff, urlDataBuffLen, 
+                "?G1=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X"
+                "&rid=%s&C=%d&id=%s&type=%s&ts=%ld&rssi0=%d" "&clat=%s&clon=%s&st=%02X%02X", rBuff[0], rBuff[1],
+                rBuff[2], rBuff[3], rBuff[4], rBuff[5], rBuff[6], rBuff[7], rBuff[8], rBuff[9], rBuff[10], rBuff[11],
+                rBuff[12], rBuff[13], rBuff[14], rBuff[15], rBuff[16], rBuff[17], rBuff[18], rBuff[19], rBuff[20],
+                rBuff[21], rBuff[22], rBuff[23], getGwId(), ++seqNumber[QuartzSensor_DPD], bleDPD->macId,
+                getGwId(), time(nullptr), bleDPD->rssi, gwCfg.gwLat, gwCfg.gwLon, rBuff[0], rBuff[1]);
+            }
+            else {
+                snprintf(urlDataBuff, urlDataBuffLen, "?rid=%s&C=%d&id=%s&type=%s&ts=%d&rssi=%d"
+                "&e0=%d&t0=%.2f&l0=%d&l0ts=%d&tapeId=0x%04X" "&bat=%.3f&clat=%s&clon=%s&st=5258",
+                getGwId(), ++seqNumber[QuartzSensor_DPD], bleDPD->macId, getGwId(), bleDPD->ts,
+                bleDPD->rssi, bleDPD->evtFlag, bleDPD->t0, bleDPD->l0, bleDPD->l0Ts, bleDPD->tapeId,
+                bleDPD->bat, gwCfg.gwLat, gwCfg.gwLon);
+            }
             return URL_CREATE_SUCCESS;
         }
         default: {
-            //TRK_PRINTF("ERROR: Unknown Ble Packet Type detected, blePktType: %d", blePkt->blePktType);
             return -2;
         }
     }
@@ -714,17 +707,19 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                     TRK_PRINTF("Sending TMP117 BLE packet for MAC:%s ...", tapeMacAddr);
                     sendBleDataPacket(blePacketData);
                 }
-            }
-#if 0
+            //}
+//#if 0
                 BleDataPacket blePacketData_OPT3110, blePacketData_IAT, blePacketData_DPD;
                 blePacketData_OPT3110.blePktType = QuartzSensor_OPT3110;
                 blePacketData_IAT.blePktType = QuartzSensor_IAT;
                 blePacketData_DPD.blePktType = QuartzSensor_DPD;
                 uint8_t tBuff[sizeof(le_advertising_info) + 256] = {0};
+                char *tapeMacAddrOpt3110 = blePacketData.blePktStrct.blePkt_OPT3110.mac_addr;
+                char *tapeMacAddrIat = blePacketData.blePktStrct.blePkt_IAT.mac_addr;
+                char *tapeMacAddrDpd = blePacketData.blePktStrct.blePkt_DPD.macId;
                 le_advertising_info *tinfo = (le_advertising_info *)tBuff;
                 /* Create OPT3110 info data */
                 bacpy(&tinfo->bdaddr, &info->bdaddr);
-                //TRK_PRINTF("OPT3110:tinfo->bdaddr:%s, info->bdaddr:%s",tinfo->bdaddr, info->bdaddr);
                 memset(tinfo->data, 0, 32);
                 tinfo->data[7] = 0x52;
                 tinfo->data[8] = 0x58;
@@ -752,9 +747,8 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->data[30] = 32;
                 tinfo->data[31] = 59;
                 tinfo->length = 31;
-
                 parseBleDataPacket(tinfo, &blePacketData_OPT3110);
-                TRK_PRINTF("Sending OPT3110 BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending OPT3110 BLE packet for MAC:%s ...", tapeMacAddrOpt3110);
                 sendBleDataPacket(blePacketData_OPT3110);
 
                 /* Create IAT info data */
@@ -785,9 +779,8 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->data[30] = 31;
                 tinfo->data[31] = 60;
                 tinfo->length = 31;
-
                 parseBleDataPacket(tinfo, &blePacketData_IAT);
-                TRK_PRINTF("Sending IAT BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending IAT BLE packet for MAC:%s ...", tapeMacAddrIat);
                 sendBleDataPacket(blePacketData_IAT);
 
                 /* Create DPD info data */
@@ -818,26 +811,10 @@ void bleScanThreadFunc(uint32_t bleScanTime, uint32_t bleSleepTime) {
                 tinfo->data[30] = 30;
                 tinfo->data[31] = 61;
                 tinfo->length = 31;
-
                 parseBleDataPacket(tinfo, &blePacketData_DPD);
-                TRK_PRINTF("Sending DPD BLE packet for MAC:%s ...", tapeMacAddr);
+                TRK_PRINTF("Sending DPD BLE packet for MAC:%s ...", tapeMacAddrDpd);
                 sendBleDataPacket(blePacketData_DPD);
-
-            /*
-                if ((strcmp(bleData->mac_addr, "E897D628F980") == 0) && deviceType == DEVICE_TYPE_WHITE && info->length > 30) {
-                    TRK_PRINTF("BLE_STATS:Device:%d,Bytes:%d,MAC:%s,RSSI:%d,TotalRSSI:%d,AvgRSSI:%d,SeenCnt:%d\n",
-                    scanResult[bleData->mac_addr].deviceType, info->length, bleData->mac_addr, scanResult[bleData->mac_addr].rssi,
-                    scanResult[bleData->mac_addr].totalRssi, scanResult[bleData->mac_addr].avgRssi, 
-                    scanResult[bleData->mac_addr].seenCount);
-                    int i = 0;
-                    TRK_PRINTF("BLE_DATA:MAC:%s", bleData->mac_addr);
-                    for (i = 0; i <= info->length; i++) {
-                        TRK_PRINTF(",[%d]:0x%02X", i, info->data[i]);
-                    }
-                    TRK_PRINTF(",RSSI:%d\n", (int8_t)info->data[info->length]);
-                }
-            */
-#endif
+            }
         }
 
         enableDisableBleScan(fd, false);

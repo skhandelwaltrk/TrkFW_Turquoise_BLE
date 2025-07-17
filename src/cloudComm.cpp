@@ -194,3 +194,4 @@ int sendDataUrlToCloud(const char *packetDataBuff, size_t packetDataLen) {
 
     return 0;
 }
+

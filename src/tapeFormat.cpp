@@ -1,5 +1,6 @@
 #include "tapeFormat.h"
 #include "common.h"
+#include "config.h"
 
 static void parseBleAdvData_QuartzTMP117(le_advertising_info *info, BlePacket_QuartzTMP117 *blePkt);
 static void parseBleAdvData_QuartzOPT3110(le_advertising_info *info, BlePacket_QuartzOPT3110 *blePkt);
@@ -59,9 +60,9 @@ void parseBleDataPacket(le_advertising_info *info, BleDataPacket *bleDataPkt) {
         return;
     }
 
-#ifdef FEATURE_G1_URL_STR_FORMAT
-    memcpy(bleDataPkt->bleBuff, &info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX], WHITE_TAPE_DATA_PACKET_LEN);
-#endif
+    if (isCurlReqFormatG1() == true) {
+        memcpy(bleDataPkt->bleBuff, &info->data[QUARTZ_BLE_ADV_PKT_DATA_START_IDX], WHITE_TAPE_DATA_PACKET_LEN);
+    }
 
     switch (bleDataPkt->blePktType) {
         case QuartzSensor_TMP117:
@@ -187,19 +188,17 @@ static void parseBleAdvData_QuartzDPD(le_advertising_info *info, BlePacket_DPD *
     }
 
     /* MAC Address */
-    memset(blePkt->mac_addr, 0, sizeof(blePkt->mac_addr));
-    ba2str(&info->bdaddr, blePkt->mac_addr);
-    removeChar(blePkt->mac_addr,':');
+    memset(blePkt->macId, 0, sizeof(blePkt->macId));
+    ba2str(&info->bdaddr, blePkt->macId);
+    removeChar(blePkt->macId,':');
 
     /* Process and save the BLE info data - 24 bytes */
     blePkt->fid = getFid(info);
-    blePkt->evt_flag = getEvtFlag_QuartzDPD(info);
+    blePkt->evtFlag = getEvtFlag_QuartzDPD(info);
+    memcpy(&blePkt->tagMacId[0], &info->data[3], 6);
     blePkt->t0 = (float)info->data[QUARTZ_DPD_BLE_ADV_PKT_T0_OFFSET];
-    blePkt->t1 = (float)info->data[QUARTZ_DPD_BLE_ADV_PKT_T1_OFFSET];
-    blePkt->t1_ts = getTimestampU32(info, QUARTZ_DPD_BLE_ADV_PKT_T1_TS_OFFSET);
     blePkt->l0 = getLightData(info, QUARTZ_DPD_BLE_ADV_PKT_L0_OFFSET);
-    blePkt->l0_ts = getTimestampU32(info, QUARTZ_DPD_BLE_ADV_PKT_L0_TS_OFFSET);
-    blePkt->l1 = getLightData(info, QUARTZ_DPD_BLE_ADV_PKT_L1_OFFSET);
+    blePkt->l0Ts = getTimestampU32(info, QUARTZ_DPD_BLE_ADV_PKT_A0_OFFSET);
     blePkt->ts = getTimestampU32(info, QUARTZ_DPD_BLE_ADV_PKT_TS_OFFSET);
     blePkt->tapeId = getTapeId(info);
     blePkt->bat = getBatVoltage(info);

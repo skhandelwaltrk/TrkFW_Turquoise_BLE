@@ -13,7 +13,7 @@ extern "C" {
 /* Defined header files */
 #include "common.h"
 
-#define FEATURE_G1_URL_STR_FORMAT
+//#define FEATURE_G1_URL_STR_FORMAT
 //#define FEATURE_ENAHNCED_URL_STR_FORMAT
 
 #define RFID_GW_COMPANY_IDENTIFIER_HIGH_INDEX                 (2u)
@@ -82,13 +82,11 @@ extern "C" {
 #define QUARTZ_IAT_BLE_ADV_PKT_A0_CNT_OFFSET                   (16)
 #define QUARTZ_IAT_BLE_ADV_PKT_TS_OFFSET                       (17)
 
-#define QUARTZ_DPD_BLE_ADV_PKT_T0_OFFSET                       (3)
-#define QUARTZ_DPD_BLE_ADV_PKT_T1_OFFSET                       (4)
-#define QUARTZ_DPD_BLE_ADV_PKT_T1_TS_OFFSET                    (5)
-#define QUARTZ_DPD_BLE_ADV_PKT_L0_OFFSET                       (9)
-#define QUARTZ_DPD_BLE_ADV_PKT_L0_TS_OFFSET                    (11)
-#define QUARTZ_DPD_BLE_ADV_PKT_L1_OFFSET                       (15)
-#define QUARTZ_DPD_BLE_ADV_PKT_TS_OFFSET                       (17)
+#define QUARTZ_DPD_BLE_ADV_PKT_T0_OFFSET                       (9)
+#define QUARTZ_DPD_BLE_ADV_PKT_H0_OFFSET                       (10)
+#define QUARTZ_DPD_BLE_ADV_PKT_L0_OFFSET                       (11)
+#define QUARTZ_DPD_BLE_ADV_PKT_A0_OFFSET                       (13)
+#define QUARTZ_DPD_BLE_ADV_PKT_TS_OFFSET                       (15)
 
 #define EVT_QUARTZ_TMP117_NORMAL_MODE                          (0)
 #define EVT_WHITE_TAPE_TEMP_HEARTBEAT_MODE                     (50)
@@ -237,14 +235,14 @@ typedef struct BlePacket_IAT {
     uint16_t fid;           // Byte [0:1]: FID
     uint8_t evt_flag;       // Byte [2]: Event Flag
     float t0;               // Byte [3]: Current Temp t0
-    float t1;               // Byte [4]: Temperature T1 (violation)
+    float t1;               // Byte [4]: Temperature T1 (latest violation)
     uint32_t t1_ts;         // Byte [5:8]: Current Timestamp (t0)
     uint16_t l0;            // Byte [9:10]: light l0 (Violation)
     uint32_t l0_ts;         // Byte [11:14]: Timestamp t_l0
     int8_t a0_val;          // Byte [15]: Acceleration a0 value
     uint8_t a0_count;       // Byte [16]: Acceleration a0 count
     uint32_t ts;            // Byte [17:20]: Timestamp ts
-    uint16_t tapeId;        // Byte [21:22]: Tape ID (0xFFFA)
+    uint16_t tapeId;        // Byte [21:22]: Tape ID (0xFFB1)
     float bat;              // Byte [23]: Battery voltage of white tape
     int8_t rssi;            // Byte [24]: RSSI
 } BlePacket_IAT;
@@ -281,20 +279,36 @@ typedef enum e_QuartzEvt_DPD {
 } e_QuartzEvt_DPD;
 
 typedef struct BlePacket_DPD {
-    char mac_addr[20];      // White Tape MAC Address
+    char macId[20];      // White Tape MAC Address
     uint16_t fid;           // Byte [0:1]: FID
-    uint8_t evt_flag;       // Byte [2]: Event Flag
-    float t0;               // Byte [3]: Current Temp t0
-    float t1;               // Byte [4]: Temperature T1 (violation)
-    uint32_t t1_ts;         // Byte [5:8]: Current Timestamp (t0)
-    uint16_t l0;            // Byte [9:10]: light l0
-    uint32_t l0_ts;         // Byte [11:14]: Timestamp t_l0
-    uint16_t l1;            // Byte [15:16]: Current Light l1
-    uint16_t ts;            // Byte [17:20]: Timestamp ts
-    uint16_t tapeId;        // Byte [21:22]: Tape ID (0xFFFA)
-    float bat;              // Byte [23]: Battery voltage of white tape
+    uint8_t evtFlag;        // Byte [2]: Event Flag
+    uint8_t tagMacId[6];    // Byte [3:8]: tag MAC Address
+    float t0;               // Byte [9]: Current Temp t0
+    uint16_t l0;            // Byte [10:11]: light l0
+    uint32_t l0Ts;          // Byte [12:15]: Timestamp t_l0
+    uint16_t ts;            // Byte [16:19]: Timestamp ts
+    uint16_t tapeId;        // Byte [20:21]: Tape ID (0xFFB3)
+    float bat;              // Byte [22:23]: Battery voltage of white tape (integer + fraction byte)
     int8_t rssi;            // Byte [24]: RSSI
 } BlePacket_DPD;
+
+typedef struct BlePacket_IOS_SensorADV {
+    char macId[20];      // White Tape MAC Address
+    uint16_t fid;           // Byte [0:1]: FID
+    uint8_t evtFlag;        // Byte [2]: Event Flag
+    uint8_t tagMacId[6];    // Byte [3:8]: tag MAC Address
+    float t0;               // Byte [9]: Current Temp t0
+    float h0;               // Byte [10]: Humidity h0
+    uint16_t l0;            // Byte [11:12]: light l0
+    uint16_t a0;            // Byte [13:14]: Acceleration a0
+    uint16_t ts;            // Byte [15:18]: Timestamp ts
+    float bat;              // Byte [19]: Battery voltage of white tape (integer + fraction byte)
+    uint8_t uuidFiledLen;   // Byte [20]: 0x03
+    uint8_t uuidFiledLenList;// Byte [21]: 0x03
+    uint8_t uuidLSB;        // Byte [22]: 0xFF
+    uint8_t uuidMSB;        // Byte [23]: 0xB4
+    int8_t rssi;            // Byte [24]: RSSI
+} BlePacket_IOS_SensorADV;
 
 #define QUARTZ_SENSOR_TYPES         (4)
 typedef enum BlePacketType {
@@ -335,9 +349,7 @@ typedef union BleDataPacketStruct {
 */
 typedef struct BleDataPacket {
     BleDataPacketStruct blePktStrct;
-#ifdef FEATURE_G1_URL_STR_FORMAT
     uint8_t bleBuff[WHITE_TAPE_DATA_PACKET_LEN];
-#endif
     BlePacketType blePktType;
 } BleDataPacket;
 
